@@ -1,0 +1,15 @@
+# Môi trường ảo & cache Python
+.venv/
+__pycache__/
+*.pyc
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Dữ liệu thô (nặng, không cần đẩy lên git)
+data/raw/*
+!data/raw/.gitkeep
+
+# Hệ điều hành
+.DS_Store
+Thumbs.db
