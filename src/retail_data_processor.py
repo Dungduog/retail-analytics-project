@@ -19,6 +19,14 @@ from typing import Optional, Union
 
 import pandas as pd
 
+# Hỗ trợ cả 2 cách chạy: `python src/retail_data_processor.py` (script độc lập)
+# và `from src.retail_data_processor import RetailDataProcessor` (import như package,
+# ví dụ từ notebook ở notebooks/ hoặc từ main.py ở thư mục gốc).
+try:
+    from .utils import calculate_revenue, is_cancelled_invoice, extract_order_month
+except ImportError:
+    from utils import calculate_revenue, is_cancelled_invoice, extract_order_month
+
 
 class RetailDataProcessor:
     """
@@ -31,7 +39,8 @@ class RetailDataProcessor:
     raw_data : pd.DataFrame | None
         Dữ liệu thô sau khi load_data() chạy xong. None nếu chưa load.
     clean_data_ : pd.DataFrame | None
-        Dữ liệu đã làm sạch — sẽ được gán giá trị trong clean_data() ở Tuần 2.
+        Dữ liệu đã làm sạch (BAO GỒM cả hóa đơn hủy, đánh dấu qua cột
+        IsCancelled — xem get_cancelled_orders() nếu cần lọc riêng).
     """
 
     # Các cột bắt buộc phải có trong dataset UCI Online Retail.
@@ -44,7 +53,7 @@ class RetailDataProcessor:
     def __init__(self, file_path: Union[str, Path]):
         self.file_path = Path(file_path)
         self.raw_data: Optional[pd.DataFrame] = None
-        self.clean_data_: Optional[pd.DataFrame] = None  # dùng ở Tuần 2
+        self.clean_data_: Optional[pd.DataFrame] = None
 
     # ------------------------------------------------------------------
     # TUẦN 1 — load_data()
@@ -105,11 +114,102 @@ class RetailDataProcessor:
             )
 
     # ------------------------------------------------------------------
-    # Khung sườn cho Tuần 2–4 — chưa triển khai, để sẵn chữ ký method
+    # TUẦN 2 — clean_data()
     # ------------------------------------------------------------------
     def clean_data(self) -> pd.DataFrame:
-        """(Tuần 2) Lọc Quantity/UnitPrice <= 0, xử lý hóa đơn hủy, missing CustomerID, tính Revenue."""
-        raise NotImplementedError("clean_data() sẽ được triển khai ở Tuần 2.")
+        """
+        Làm sạch dữ liệu thô (self.raw_data) theo đúng pipeline 7.1–7.8 đã mô tả
+        trong báo cáo Data Profiling & Cleaning của nhóm:
+
+            7.1  Loại bỏ duplicate hoàn toàn (drop_duplicates)
+            7.2  Loại UnitPrice <= 0 khỏi dataset chính
+            7.3  Đánh dấu cancellation -> cột IsCancelled (True/False), GIỮ LẠI
+                 trong cùng dataset (không tách riêng) để phục vụ phân tích hoàn trả
+            7.4  Xử lý Quantity theo 3 nhánh:
+                   - Quantity > 0                        -> giữ (bán hàng bình thường)
+                   - Quantity < 0 và IsCancelled = True   -> giữ (cancellation hợp lệ)
+                   - Quantity < 0 và IsCancelled = False  -> loại (lỗi/điều chỉnh nội bộ)
+                   - Quantity == 0 (hiếm/không xảy ra trên dataset thật) -> loại,
+                     vì không khớp cả 2 trường hợp hợp lệ ở trên
+            7.5  Giữ nguyên missing CustomerID (KHÔNG xóa, KHÔNG thay giá trị) —
+                 các dòng này vẫn hữu ích cho phân tích doanh thu/sản phẩm, chỉ bị
+                 loại khi làm RFM ở Tuần 3 (RFM cần gắn với từng khách hàng cụ thể)
+            7.6  Convert InvoiceDate -> datetime
+            7.7  Tạo OrderMonth dạng "YYYY-MM"
+            7.8  Tạo Revenue = Quantity × UnitPrice (âm với cancellation — đúng ý nghĩa
+                 phần doanh thu bị hoàn trả/hủy)
+
+        Returns
+        -------
+        pd.DataFrame
+            Dữ liệu đã làm sạch — BAO GỒM cả hóa đơn hủy (đánh dấu IsCancelled=True).
+            Cũng được lưu vào self.clean_data_.
+
+        Raises
+        ------
+        RuntimeError
+            Nếu chưa gọi load_data() trước đó.
+        """
+        if self.raw_data is None:
+            raise RuntimeError("Phải gọi load_data() trước khi gọi clean_data().")
+
+        df = self.raw_data.copy()
+        rows_raw = len(df)
+
+        # 7.1 — Loại bỏ duplicate hoàn toàn (toàn bộ cột giống hệt nhau)
+        df = df.drop_duplicates()
+        rows_removed_duplicates = rows_raw - len(df)
+
+        # 7.2 — Loại UnitPrice <= 0 khỏi dataset chính (áp dụng cho MỌI dòng,
+        # kể cả dòng sẽ là cancellation, đúng theo báo cáo — không có ngoại lệ)
+        rows_before_price = len(df)
+        df = df[df["UnitPrice"] > 0]
+        rows_removed_price = rows_before_price - len(df)
+
+        # 7.3 — Đánh dấu cancellation bằng hàm cơ bản is_cancelled_invoice(),
+        # GIỮ NGUYÊN trong df chính (không tách bảng riêng)
+        df["IsCancelled"] = df["InvoiceNo"].astype(str).apply(is_cancelled_invoice)
+
+        # 7.4 — Xử lý Quantity theo 3 nhánh
+        valid_normal_sale = df["Quantity"] > 0
+        valid_cancellation = (df["Quantity"] < 0) & (df["IsCancelled"])
+        rows_before_qty = len(df)
+        df = df[valid_normal_sale | valid_cancellation]
+        rows_removed_quantity = rows_before_qty - len(df)
+
+        # 7.5 — Missing CustomerID: không xử lý gì cả, giữ nguyên NaN
+        missing_customer_count = df["CustomerID"].isna().sum()
+
+        # 7.6 — Chuẩn hóa InvoiceDate sang datetime
+        df["InvoiceDate"] = pd.to_datetime(df["InvoiceDate"], errors="coerce")
+
+        # 7.7 — Tạo OrderMonth dạng "YYYY-MM" — dùng lại hàm cơ bản extract_order_month()
+        df["OrderMonth"] = df["InvoiceDate"].apply(extract_order_month)
+
+        # 7.8 — Tạo Revenue = Quantity x UnitPrice — dùng lại hàm cơ bản calculate_revenue()
+        df["Revenue"] = df.apply(lambda row: calculate_revenue(row.to_dict()), axis=1)
+
+        self.clean_data_ = df.reset_index(drop=True)
+
+        print("✅ clean_data() hoàn tất:")
+        print(f"   - Dòng raw ban đầu: {rows_raw:,}")
+        print(f"   - Loại do duplicate (7.1): {rows_removed_duplicates:,}")
+        print(f"   - Loại do UnitPrice <= 0 (7.2): {rows_removed_price:,}")
+        print(f"   - Loại do Quantity < 0 nhưng không phải cancellation (7.4): {rows_removed_quantity:,}")
+        print(f"   - CustomerID thiếu, giữ nguyên NaN (7.5): {missing_customer_count:,}")
+        print(f"   - Trong đó hóa đơn hủy (IsCancelled=True) được GIỮ LẠI: {int(self.clean_data_['IsCancelled'].sum()):,}")
+        print(f"   - Dữ liệu sạch cuối cùng (clean_data_): {len(self.clean_data_):,} dòng")
+        return self.clean_data_
+
+    def get_cancelled_orders(self) -> pd.DataFrame:
+        """
+        Trả về (view lọc, không copy riêng dữ liệu) các dòng cancellation trong
+        clean_data_ — tiện dùng khi cần phân tích riêng phần hoàn trả/hủy, mà
+        không phải lưu trùng dữ liệu như thiết kế cũ (self.cancelled_orders_).
+        """
+        if self.clean_data_ is None:
+            raise RuntimeError("Phải gọi clean_data() trước khi gọi get_cancelled_orders().")
+        return self.clean_data_[self.clean_data_["IsCancelled"]]
 
     def analyze_revenue(self) -> dict:
         """(Tuần 3) Phân tích doanh thu theo tháng/quốc gia/sản phẩm + tính RFM."""
@@ -127,13 +227,16 @@ class RetailDataProcessor:
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
     processor = RetailDataProcessor("data/raw/Online_Retail.xlsx")
-    df = processor.load_data()
+    processor.load_data()
 
-    print("\n--- 5 dòng đầu tiên ---")
-    print(df.head())
+    cleaned = processor.clean_data()
 
-    print("\n--- Kiểu dữ liệu từng cột ---")
-    print(df.dtypes)
+    print("\n--- 5 dòng đầu tiên của dữ liệu sạch (clean_data_) ---")
+    print(cleaned.head())
 
-    print("\n--- Số lượng giá trị thiếu theo cột ---")
-    print(df.isna().sum())
+    print("\n--- Kiểm tra nhanh cột mới (10 dòng đầu) ---")
+    print(cleaned[["InvoiceNo", "IsCancelled", "CustomerID", "OrderMonth", "Revenue"]].head(10))
+
+    cancelled = processor.get_cancelled_orders()
+    print(f"\n--- Các dòng cancellation vẫn còn trong clean_data_: {len(cancelled):,} dòng (xem 10 dòng đầu) ---")
+    print(cancelled.head(10))
