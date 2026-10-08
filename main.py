@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from src.eda_analysis import run_eda
 from src.outlier_analysis import analyze_outliers
 from src.retail_data_processor import RetailDataProcessor
 from src.validation import validate_results
@@ -51,6 +52,13 @@ def main() -> None:
         outlier_file=PROCESSED_DIR / "outliers_detected.csv",
     )
     validate_results(cleaned_file, customer_file)
+    run_eda(
+        cleaned_file=cleaned_file,
+        customer_file=customer_file,
+        tables_dir=PROJECT_ROOT / "reports" / "tables",
+        figures_dir=PROJECT_ROOT / "reports" / "figures",
+        report_file=PROJECT_ROOT / "reports" / "eda_results.md",
+    )
 
 
 if __name__ == "__main__":
