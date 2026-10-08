@@ -1,0 +1,5 @@
+PriceSegment,Quantity,Revenue,TransactionLines,LowerBound,UpperBound
+Low,2887471,2016181.784,160680,-inf,1.25
+Medium,1286199,2231863.51,102368,1.25,2.08
+High,897419,2585402.45,137153,2.08,4.13
+Premium,501331,3808663.06,124677,4.13,inf

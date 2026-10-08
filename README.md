@@ -10,7 +10,7 @@ Phiên bản này kết hợp:
 ## Cấu trúc dự án
 
 ```text
-project_fixed/
+retail-analytics-project/
 ├── data/
 │   ├── raw/
 │   │   └── Online_Retail.xlsx
@@ -21,8 +21,13 @@ project_fixed/
 │       └── outliers_detected.csv
 ├── notebooks/
 │   └── NoteBook.md
+├── reports/
+│   ├── eda_results.md
+│   ├── figures/
+│   └── tables/
 ├── src/
 │   ├── __init__.py
+│   ├── eda_analysis.py
 │   ├── utils.py
 │   ├── retail_data_processor.py
 │   ├── outlier_analysis.py
@@ -45,6 +50,8 @@ project_fixed/
 - RFM customer segmentation.
 - Thống kê NumPy và phát hiện outlier bằng IQR.
 - Validation cho cleaned data và customer segments.
+- EDA trả lời tám câu hỏi nghiên cứu bằng dữ liệu đã làm sạch.
+- Biểu đồ doanh thu tháng, top sản phẩm, phân khúc giá, giá trị đơn hàng và quốc gia.
 
 Chi tiết phương pháp và kết quả hiện tại nằm trong `notebooks/NoteBook.md`.
 
@@ -65,7 +72,8 @@ python main.py
 ```
 
 Pipeline sẽ đọc `data/raw/Online_Retail.xlsx` và ghi lại bốn file trong
-`data/processed/`.
+`data/processed/`, các bảng EDA trong `reports/tables/` và biểu đồ trong
+`reports/figures/`.
 
 ## Trạng thái các yêu cầu còn lại
 
@@ -73,10 +81,9 @@ Các nội dung dưới đây có trong yêu cầu ban đầu nhưng chưa đư�
 hai phiên bản nguồn, nên chưa được thêm vào project này:
 
 - Jupyter Notebook `.ipynb` có code và output.
-- Visualization bằng Matplotlib.
 - Fake Store API.
 - Web scraping Books to Scrape.
-- EDA hoàn chỉnh trả lời tám câu hỏi nghiên cứu và phần kết luận cuối.
+- Phần kết luận cuối của toàn bộ project.
 
 Không tạo file rỗng cho các phần trên. Chỉ bổ sung sau khi nhóm thống nhất phạm
 vi và cách triển khai.
