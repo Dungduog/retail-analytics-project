@@ -1,16 +1,9 @@
-# Môi trường ảo & cache Python
 .venv/
 __pycache__/
 *.pyc
-
-# Jupyter checkpoints
 .ipynb_checkpoints/
 
-# Dữ liệu thô (nặng, không cần đẩy lên git)
-data/raw/*
-!data/raw/.gitkeep
-!data/raw/Online_Retail.xlsx
+# Dữ liệu được giữ trong bản bàn giao cục bộ nhưng không nên commit lên Git.
+data/raw/*.xlsx
+data/processed/*.csv
 
-# Hệ điều hành
-.DS_Store
-Thumbs.db
