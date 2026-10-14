@@ -14,6 +14,8 @@ retail-analytics-project/
 ├── data/
 │   ├── raw/
 │   │   └── Online_Retail.xlsx
+│   ├── external/
+│   │   └── books_scraped.csv
 │   └── processed/
 │       ├── cleaned_retail.csv
 │       ├── customer_segments.csv
@@ -27,6 +29,7 @@ retail-analytics-project/
 │   └── tables/
 ├── src/
 │   ├── __init__.py
+│   ├── book_scraper.py
 │   ├── eda_analysis.py
 │   ├── utils.py
 │   ├── retail_data_processor.py
@@ -52,6 +55,7 @@ retail-analytics-project/
 - Validation cho cleaned data và customer segments.
 - EDA trả lời tám câu hỏi nghiên cứu bằng dữ liệu đã làm sạch.
 - Biểu đồ doanh thu tháng, top sản phẩm, phân khúc giá, giá trị đơn hàng và quốc gia.
+- Script Books to Scrape để thực hành HTTP GET, HTML, BeautifulSoup và pagination.
 
 Chi tiết phương pháp và kết quả hiện tại nằm trong `notebooks/NoteBook.md`.
 
@@ -75,16 +79,63 @@ Pipeline sẽ đọc `data/raw/Online_Retail.xlsx` và ghi lại bốn file tron
 `data/processed/`, các bảng EDA trong `reports/tables/` và biểu đồ trong
 `reports/figures/`.
 
-## Trạng thái các yêu cầu còn lại
+## Thực hành web scraping
 
-Các nội dung dưới đây có trong yêu cầu ban đầu nhưng chưa được triển khai trong
-hai phiên bản nguồn, nên chưa được thêm vào project này:
+Chạy riêng từ thư mục gốc của project (cần Internet):
+
+```bash
+python src/book_scraper.py
+```
+
+Script theo liên kết `next` đến trang cuối, sau đó xuất
+`data/external/books_scraped.csv`. Muốn chạy demo nhanh trên hai trang:
+
+```bash
+python src/book_scraper.py --max-pages 2
+```
+
+Cả hai lệnh ghi cùng một file CSV; bản demo thay thế kết quả đầy đủ bằng dữ liệu
+của hai trang. Chạy lại lệnh không có `--max-pages` để lấy toàn bộ danh sách.
+Đường dẫn output tính từ vị trí script nên không phụ thuộc thư mục terminal.
+
+Các cột CSV: `Title`, `PriceGBP`, `Rating`, `Availability`, `ProductURL`,
+`PageNumber`. Script lấy thông tin từ trang danh sách, không tải ảnh sản phẩm.
+
+Quy trình: HTTP GET → kiểm tra status code → parse HTML → chọn thẻ →
+đọc text/attributes → pagination → DataFrame → CSV.
+
+| HTML / selector | Nội dung được đọc |
+|---|---|
+| `article.product_pod` | Khối của từng sản phẩm, lấy bằng `find_all()` |
+| `h3 a` | Thuộc tính `title` chứa tên đầy đủ và `href` chứa link |
+| `p.price_color` | Text giá, lấy bằng `find()` rồi chuyển thành số |
+| `p.star-rating` | Thuộc tính `class` chứa mức rating One–Five |
+| `p.instock.availability` | Text trạng thái tồn kho |
+| `li.next a` | Thuộc tính `href` dẫn sang trang tiếp theo |
+
+`select_one()` lấy thẻ đầu tiên khớp CSS selector; `get_text()` lấy nội dung chữ.
+`urljoin()` chuyển link tương đối thành URL đầy đủ.
+HTTP request có timeout 30 giây và kiểm tra lỗi bằng `raise_for_status()`.
+Script chờ 0,5 giây giữa các trang và chỉ ghi CSV sau khi cào thành công.
+
+Website là sandbox luyện scraping; giá và rating được gán ngẫu nhiên.
+Dữ liệu sách phục vụ thực hành kỹ thuật, được lưu riêng với UCI Online Retail.
+Pipeline `main.py` vẫn chạy độc lập với script này.
+
+Tài liệu học:
+
+- [Books to Scrape](https://books.toscrape.com/)
+- [Thông tin sandbox](https://sites.toscrape.com/)
+- [Requests Quickstart](https://requests.readthedocs.io/en/latest/user/quickstart/)
+- [Beautiful Soup documentation](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
+
+## Các phần còn lại
+
+Các nội dung cần hoàn thiện cho bài nộp:
 
 - Jupyter Notebook `.ipynb` có code và output.
-- Fake Store API.
-- Web scraping Books to Scrape.
 - Phần kết luận cuối của toàn bộ project.
+- Slide thuyết trình.
 
-Không tạo file rỗng cho các phần trên. Chỉ bổ sung sau khi nhóm thống nhất phạm
-vi và cách triển khai.
+Fake Store API không nằm trong phạm vi yêu cầu của giảng viên theo thông tin nhóm cung cấp.
 

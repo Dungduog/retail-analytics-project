@@ -123,7 +123,7 @@ def run_eda(
     _save_table(inactive_customers, tables_path, "inactive_customers.csv")
 
     # 8. Sản phẩm xuất hiện nhiều trong cancellation invoices.
-    cancelled_products = (
+    cancelled_products_all = (
         cancellations.dropna(subset=["Description"])
         .groupby(["StockCode", "Description"], as_index=False)
         .agg(
@@ -136,8 +136,8 @@ def run_eda(
             ["CancelledInvoiceCount", "CancelledQuantity"],
             ascending=False,
         )
-        .head(20)
     )
+    cancelled_products = cancelled_products_all.head(20)
     _save_table(cancelled_products, tables_path, "cancelled_products.csv")
 
     # Giá trị đơn hàng được tính ở cấp InvoiceNo, không phải từng dòng sản phẩm.
@@ -149,6 +149,46 @@ def run_eda(
     _save_table(order_values, tables_path, "order_values.csv")
 
     plt.style.use("seaborn-v0_8-whitegrid")
+
+    segment_order = [
+        "Champions",
+        "Loyal Customers",
+        "Regular Customers",
+        "At Risk",
+        "Lost",
+    ]
+    segment_colors = ["#2A9D8F", "#457B9D", "#A8DADC", "#E76F51", "#6C757D"]
+    segment_counts = (
+        customers["Segment"].value_counts().reindex(segment_order, fill_value=0)
+    )
+    segment_percentages = segment_counts / segment_counts.sum() * 100
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars = ax.bar(segment_counts.index, segment_counts.values, color=segment_colors)
+    for bar, count, percentage in zip(
+        bars,
+        segment_counts.values,
+        segment_percentages.values,
+    ):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height(),
+            f"{count:,}\n({percentage:.1f}%)",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
+    ax.set_title("Customer Segment Distribution")
+    ax.set_xlabel("Customer segment")
+    ax.set_ylabel("Number of customers")
+    ax.tick_params(axis="x", rotation=20)
+    ax.set_ylim(0, segment_counts.max() * 1.18)
+    fig.tight_layout()
+    fig.savefig(
+        figures_path / "customer_segments_distribution.png",
+        dpi=160,
+    )
+    plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(11, 5.5))
     ax.plot(
@@ -179,6 +219,34 @@ def run_eda(
     fig.savefig(figures_path / "top_products.png", dpi=160)
     plt.close(fig)
 
+    top_customer_chart = top_customers.head(10).sort_values("Monetary")
+    customer_labels = [
+        f"ID: {int(customer_id)}"
+        for customer_id in top_customer_chart["CustomerID"]
+    ]
+    fig, ax = plt.subplots(figsize=(10, 6.5))
+    bars = ax.barh(
+        customer_labels,
+        top_customer_chart["Monetary"],
+        color="#1D3557",
+    )
+    for bar, value in zip(bars, top_customer_chart["Monetary"]):
+        ax.text(
+            bar.get_width(),
+            bar.get_y() + bar.get_height() / 2,
+            f" {value:,.0f}",
+            va="center",
+            ha="left",
+            fontsize=9,
+        )
+    ax.set_title("Top 10 Champion Customers by Net Monetary Value")
+    ax.set_xlabel("Net monetary value")
+    ax.set_ylabel("Customer ID")
+    ax.margins(x=0.17)
+    fig.tight_layout()
+    fig.savefig(figures_path / "top_customers.png", dpi=160)
+    plt.close(fig)
+
     fig, ax = plt.subplots(figsize=(8, 5.5))
     ax.bar(price_segments["PriceSegment"].astype(str), price_segments["Quantity"], color="#6C5B7B")
     ax.set_title("Purchased Quantity by Price Segment")
@@ -206,6 +274,33 @@ def run_eda(
     ax.set_xlabel("Revenue")
     fig.tight_layout()
     fig.savefig(figures_path / "country_revenue.png", dpi=160)
+    plt.close(fig)
+
+    cancelled_count_chart = (
+        cancelled_products_all.nlargest(10, "CancelledInvoiceCount")
+        .sort_values("CancelledInvoiceCount")
+    )
+    cancelled_value_chart = (
+        cancelled_products_all.nlargest(10, "CancelledValue")
+        .sort_values("CancelledValue")
+    )
+    fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+    axes[0].barh(
+        cancelled_count_chart["Description"],
+        cancelled_count_chart["CancelledInvoiceCount"],
+        color="#E63946",
+    )
+    axes[0].set_title("Top Cancelled Products by Invoice Count")
+    axes[0].set_xlabel("Cancelled invoice count")
+    axes[1].barh(
+        cancelled_value_chart["Description"],
+        cancelled_value_chart["CancelledValue"],
+        color="#D62828",
+    )
+    axes[1].set_title("Top Cancelled Products by Refunded Value")
+    axes[1].set_xlabel("Refunded value")
+    fig.tight_layout()
+    fig.savefig(figures_path / "cancelled_products.png", dpi=160)
     plt.close(fig)
 
     peak_month = monthly_revenue.loc[monthly_revenue["Revenue"].idxmax()]
