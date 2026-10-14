@@ -769,7 +769,7 @@ Gross revenue theo tháng (đơn vị GBP):
 Nhận xét:
 
 - Doanh thu cao nhất vào **tháng 11/2011** với 1,503,867.
-- Ba tháng 9, 10, 11 chiếm khoảng **34.9%** tổng gross revenue cả giai đoạn, phù hợp với mùa mua sắm cuối năm trước Giáng sinh.
+- Ba tháng 9, 10, 11 chiếm khoảng **34.9%** tổng gross revenue cả giai đoạn, phù hợp mùa mua sắm cuối năm trước Giáng sinh. (Lưu ý: Q4 theo lịch dương là tháng 10–12, chiếm ~30.9%; tháng 12 trong dataset chưa đầy đủ.)
 - Tháng 12/2011 thấp vì dữ liệu chỉ kéo dài đến ngày 09/12 — không phản ánh xu hướng thực.
 
 ---
@@ -840,7 +840,7 @@ Top khách trong nhóm Champions (sắp xếp theo Monetary ròng):
 
 Nhận xét:
 
-Khách `14911` có số hóa đơn cao nhất (201) trong nhóm Champions, thể hiện mức độ mua hàng rất thường xuyên. Khách `14646` dẫn đầu về Monetary và có Recency chỉ 2 ngày — khách hàng rất tích cực.
+Khách `14911` có **201 hóa đơn** — nổi bật trong bảng 10 khách Monetary cao nhất, nhưng không phải tần suất mua cao nhất cả nhóm Champions (khách `12748` có 209 hóa đơn, cũng thuộc Champions). Khách `14646` dẫn đầu về Monetary và có Recency chỉ 2 ngày.
 
 ---
 
@@ -881,6 +881,8 @@ Những khách có Recency lớn nhất (lên tới 374 ngày) hầu hết chỉ
 
 ## 14.8. Sản phẩm nào thường xuyên xuất hiện trong các đơn bị hủy?
 
+**Top 10 theo số hóa đơn hủy:**
+
 | Hạng | Sản phẩm | Số hóa đơn hủy | Giá trị hủy |
 |---|---|---|---|
 | 1 | Manual (mã nghiệp vụ) | 223 | 146,784 |
@@ -890,9 +892,19 @@ Những khách có Recency lớn nhất (lên tới 374 ngày) hầu hết chỉ
 | 5 | SET OF 3 CAKE TINS PANTRY DESIGN | 73 | 730 |
 | 6 | Discount | 65 | 5,696 |
 
+**Top 10 theo giá trị hủy (độc lập):**
+
+| Hạng | Sản phẩm | Số hóa đơn hủy | Giá trị hủy |
+|---|---|---|---|
+| 1 | AMAZON FEE (mã phí) | — | 235,281 |
+| 2 | PAPER CRAFT , LITTLE BIRDIE | — | 168,469 |
+| 3 | Manual (mã nghiệp vụ) | 223 | 146,784 |
+| 4 | DOTCOM POSTAGE (mã phí) | — | ~60,000+ |
+| 5 | … | … | … |
+
 Nhận xét:
 
-Sản phẩm thật bị hủy nhiều nhất là **REGENCY CAKESTAND 3 TIER** với 180 hóa đơn hủy — đây cũng là sản phẩm có doanh thu cao thứ hai. Khách `14911` có nhiều dòng hủy nhất trong toàn bộ dataset (226 dòng).
+Hai bảng độc lập cho thấy xếp hạng hoàn toàn khác nhau. Theo số hóa đơn hủy, **REGENCY CAKESTAND 3 TIER** đứng đầu sản phẩm thật (180 hóa đơn). Theo giá trị hủy, **AMAZON FEE** và **PAPER CRAFT, LITTLE BIRDIE** (đơn 80,995 sản phẩm bị hủy ngay) dẫn đầu về giá trị tiền hủy. Biểu đồ trong notebook thể hiện đầy đủ cả hai xếp hạng.
 
 ---
 
@@ -921,28 +933,28 @@ Phân tích trả lời được toàn bộ 8 câu hỏi nghiên cứu dựa tr�
 
 | Câu hỏi | Kết quả |
 |---|---|
-| 1. Doanh thu theo thời gian | Đỉnh tháng 11/2011 (1.50M); Q4 chiếm ~34.9% tổng gross revenue |
+| 1. Doanh thu theo thời gian | Đỉnh tháng 11/2011 (1.50M); tháng 9–11 chiếm ~34.9%, Q4 (10–12) chiếm ~30.9% gross revenue |
 | 2. Sản phẩm bán nhiều nhất | PAPER CRAFT, LITTLE BIRDIE — 80,995 (đơn lớn nhất bị hủy ngay sau đó) |
 | 3. Sản phẩm doanh thu cao nhất | REGENCY CAKESTAND 3 TIER nếu loại mã phí — 174,157 |
 | 4. Phân khúc giá lượng mua cao | Low (≤ 1.25) — 2.9M sản phẩm; Premium tạo doanh thu cao nhất |
-| 5. Khách chi tiêu nhiều và thường xuyên | ID 14646 (279K, 73 hóa đơn); ID 14911 (201 hóa đơn) |
+| 5. Khách chi tiêu nhiều và thường xuyên | ID 14646 (279K, 73 hóa đơn); ID 14911 nổi bật trong top Monetary (201 hóa đơn) |
 | 6. Quốc gia đóng góp nhiều nhất | United Kingdom — 84.6% gross revenue |
 | 7. Khách lâu không quay lại | 1,692 khách Lost + At Risk; Recency lớn nhất 374 ngày |
-| 8. Sản phẩm hay bị hủy | REGENCY CAKESTAND 3 TIER — 180 hóa đơn hủy |
+| 8. Sản phẩm hay bị hủy | REGENCY CAKESTAND 3 TIER — 180 hóa đơn hủy; AMAZON FEE đứng đầu về giá trị hủy |
 
 ## 15.2. Insight kinh doanh
 
 **Doanh thu tập trung cao:**
 
-Nhóm Champions (29.8% khách) tạo ra khoảng **75.2% doanh thu ròng**. Đây là nhóm khách hàng cốt lõi cần được ưu tiên duy trì bằng loyalty program và ưu đãi dành riêng.
+Nhóm Champions (29.8% khách) tạo ra **~75.2% tổng Monetary của 4,338 khách RFM** (tương đương ~63.9% net revenue toàn dataset). Đây là nhóm khách hàng cốt lõi cần được ưu tiên duy trì bằng loyalty program và ưu đãi dành riêng.
 
 **Rủi ro nhóm At Risk:**
 
-862 khách At Risk từng có Monetary trung bình 1,474/khách nhưng Recency trung vị đã lên 95 ngày. Nếu không có can thiệp kịp thời, nhóm này có thể chuyển sang Lost và mất đi ~15.3% doanh thu ròng.
+862 khách At Risk có Monetary trung bình 1,474/khách và Recency trung vị 95 ngày. Nhóm này chiếm ~15.3% tổng Monetary trong RFM — đây là giá trị lịch sử, không phải dự báo doanh thu sẽ mất. Nếu không có can thiệp kịp thời, nguy cơ họ chuyển sang Lost là cao.
 
-**Tính mùa vụ Q4:**
+**Mùa mua sắm cuối năm:**
 
-Ba tháng cuối năm (tháng 9–11) chiếm gần 35% doanh thu. Đây là cơ sở để chuẩn bị tồn kho và triển khai marketing sớm từ tháng 8–9.
+Ba tháng 9–11 chiếm ~34.9% gross revenue; Q4 lịch dương (10–12) chiếm ~30.9% (tháng 12 chưa đầy đủ). Đây là cơ sở để chuẩn bị tồn kho và triển khai marketing sớm từ tháng 8–9.
 
 **Mâu thuẫn giữa số lượng và doanh thu:**
 
@@ -950,13 +962,13 @@ Phân khúc Low bán nhiều nhất (2.9M) nhưng doanh thu thấp hơn Premium 
 
 **Sản phẩm bị hủy đáng chú ý:**
 
-REGENCY CAKESTAND 3 TIER vừa là sản phẩm doanh thu cao thứ hai, vừa là sản phẩm thật bị hủy nhiều nhất (180 hóa đơn). Cần điều tra nguyên nhân để giảm tỉ lệ hủy.
+REGENCY CAKESTAND 3 TIER vừa là sản phẩm doanh thu cao thứ hai, vừa là sản phẩm thật bị hủy nhiều nhất (180 hóa đơn). AMAZON FEE dẫn đầu về giá trị tiền hủy (235,281). Cần điều tra nguyên nhân để giảm tỉ lệ hủy.
 
 ## 15.3. Đề xuất hành động
 
-- **Champions:** duy trì engagement bằng loyalty program và ưu đãi cá nhân hóa để giữ nhóm tạo 75% doanh thu.
+- **Champions:** duy trì engagement bằng loyalty program và ưu đãi cá nhân hóa để giữ nhóm tạo ~75% Monetary RFM.
 - **At Risk:** triển khai win-back campaign (email, voucher) trước khi Recency vượt 120 ngày.
-- **Mùa vụ:** chuẩn bị tồn kho và chiến dịch marketing từ tháng 8–9 cho giai đoạn cao điểm Q4.
+- **Mùa mua sắm:** chuẩn bị tồn kho và chiến dịch marketing từ tháng 8–9 cho giai đoạn cao điểm tháng 9–11.
 - **REGENCY CAKESTAND 3 TIER:** điều tra nguyên nhân tỉ lệ hủy cao để giảm thiệt hại doanh thu.
 - **Dữ liệu thiếu CustomerID:** xem xét thu thập CustomerID đầy đủ hơn để mở rộng phạm vi phân tích RFM.
 
