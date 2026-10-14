@@ -721,9 +721,9 @@ Một giao dịch có thể xuất hiện nhiều lần trong file này nếu đ
 
 ---
 
-# 13. Kết quả đạt được đến thời điểm hiện tại
+# 13. Tổng hợp các bước đã hoàn thành
 
-Đến thời điểm hiện tại, project đã hoàn thành các bước:
+Project đã hoàn thành toàn bộ pipeline từ đầu đến cuối:
 
 1. Xác định vấn đề và câu hỏi nghiên cứu.
 2. Khảo sát cấu trúc dataset.
@@ -731,14 +731,265 @@ Một giao dịch có thể xuất hiện nhiều lần trong file này nếu đ
 4. Xây dựng quy tắc Data Cleaning.
 5. Xây dựng pipeline làm sạch dữ liệu.
 6. Tạo `cleaned_retail.csv`.
-7. Xây dựng các function Python cơ bản.
+7. Xây dựng các function Python cơ bản (`utils.py`).
 8. Sử dụng List, Dictionary, Set và Tuple.
 9. Xây dựng class `RetailDataProcessor`.
 10. Xây dựng RFM Customer Segmentation.
 11. Tạo `customer_segments.csv`.
 12. Sử dụng NumPy để tính thống kê mô tả.
 13. Phát hiện outlier bằng phương pháp IQR.
-14. Tạo `outlier_summary.csv`.
-15. Tạo `outliers_detected.csv`.
+14. Tạo `outlier_summary.csv` và `outliers_detected.csv`.
+15. Kiểm định chất lượng dữ liệu — 15 phép kiểm tra tự động (cả 15 đạt 0 lỗi).
+16. EDA — trả lời 8 câu hỏi nghiên cứu, sinh 9 bảng kết quả và 8 biểu đồ.
+17. Tạo Jupyter Notebook `eda_retail_analysis.ipynb` với code, output và nhận xét.
 
-Các bước EDA, visualization và trả lời chi tiết các câu hỏi nghiên cứu sẽ được thực hiện ở các phần tiếp theo.
+---
+
+# 14. EDA — Kết quả 8 câu hỏi nghiên cứu
+
+Tất cả số liệu dưới đây được tính từ `cleaned_retail.csv` và `customer_segments.csv`.
+Doanh thu theo tháng, quốc gia và sản phẩm chỉ dùng normal sales; cancellation được phân tích riêng.
+
+---
+
+## 14.1. Doanh thu biến động theo thời gian như thế nào?
+
+Gross revenue theo tháng (đơn vị GBP):
+
+| Tháng | Doanh thu | Tháng | Doanh thu |
+|---|---|---|---|
+| 2010-12 | 821,453 | 2011-07 | 718,076 |
+| 2011-01 | 689,812 | 2011-08 | 757,841 |
+| 2011-02 | 522,546 | 2011-09 | 1,056,435 |
+| 2011-03 | 716,215 | 2011-10 | 1,151,264 |
+| 2011-04 | 536,968 | **2011-11** | **1,503,867** |
+| 2011-05 | 769,297 | 2011-12 | 637,790 |
+| 2011-06 | 760,547 | | |
+
+Nhận xét:
+
+- Doanh thu cao nhất vào **tháng 11/2011** với 1,503,867.
+- Ba tháng 9, 10, 11 chiếm khoảng **34.9%** tổng gross revenue cả giai đoạn, phù hợp với mùa mua sắm cuối năm trước Giáng sinh.
+- Tháng 12/2011 thấp vì dữ liệu chỉ kéo dài đến ngày 09/12 — không phản ánh xu hướng thực.
+
+---
+
+## 14.2. Sản phẩm nào được bán với số lượng nhiều nhất?
+
+| Hạng | Sản phẩm | Số lượng |
+|---|---|---|
+| 1 | PAPER CRAFT , LITTLE BIRDIE | 80,995 |
+| 2 | MEDIUM CERAMIC TOP STORAGE JAR | 78,033 |
+| 3 | WORLD WAR 2 GLIDERS ASSTD DESIGNS | 54,951 |
+| 4 | JUMBO BAG RED RETROSPOT | 48,371 |
+| 5 | WHITE HANGING HEART T-LIGHT HOLDER | 37,872 |
+| 6 | POPCORN HOLDER | 36,749 |
+
+Nhận xét:
+
+Đơn hàng 80,995 sản phẩm PAPER CRAFT, LITTLE BIRDIE (khách 16446, ngày 09/12/2011) bị hủy sau 12 phút. Tương tự, đơn 74,215 sản phẩm MEDIUM CERAMIC TOP STORAGE JAR (khách 12346) cũng bị hủy ngay sau đó. Vì phân tích này dùng gross sales nên hai đơn trên vẫn được tính vào thứ hạng.
+
+---
+
+## 14.3. Sản phẩm nào tạo ra doanh thu cao nhất?
+
+| Hạng | Sản phẩm | Doanh thu |
+|---|---|---|
+| 1 | DOTCOM POSTAGE (mã phí) | 206,249 |
+| 2 | REGENCY CAKESTAND 3 TIER | 174,157 |
+| 3 | PAPER CRAFT , LITTLE BIRDIE | 168,470 |
+| 4 | WHITE HANGING HEART T-LIGHT HOLDER | 104,284 |
+| 5 | PARTY BUNTING | 99,445 |
+| 6 | JUMBO BAG RED RETROSPOT | 94,160 |
+
+Nhận xét:
+
+Kết quả giữ nguyên các mã phí và dịch vụ như `DOTCOM POSTAGE`, `POSTAGE`, `Manual`. Nếu chỉ tính sản phẩm bán lẻ thực sự thì **REGENCY CAKESTAND 3 TIER** đứng đầu với doanh thu 174,157.
+
+---
+
+## 14.4. Phân khúc giá nào có lượng mua cao nhất?
+
+Phân khúc giá được chia theo tứ phân vị UnitPrice: Q1 = 1.25, Median = 2.08, Q3 = 4.13.
+
+| Phân khúc | Khoảng giá | Số lượng bán | Doanh thu |
+|---|---|---|---|
+| Low | ≤ 1.25 | **2,887,471** | 2,016,182 |
+| Medium | 1.25 – 2.08 | 1,286,199 | 2,231,864 |
+| High | 2.08 – 4.13 | 897,419 | 2,585,402 |
+| Premium | > 4.13 | 501,331 | **3,808,663** |
+
+Nhận xét:
+
+Phân khúc **Low** có lượng mua nhiều nhất (2.9 triệu sản phẩm). Ngược lại, phân khúc **Premium** bán ít nhất nhưng đóng góp doanh thu cao nhất (3.8 triệu). Doanh thu không tỉ lệ thuận với số lượng.
+
+---
+
+## 14.5. Khách hàng nào vừa chi tiêu nhiều vừa mua thường xuyên?
+
+Top khách trong nhóm Champions (sắp xếp theo Monetary ròng):
+
+| CustomerID | Recency (ngày) | Số hóa đơn | Monetary ròng |
+|---|---|---|---|
+| 14646 | 2 | 73 | 279,489 |
+| 18102 | 1 | 60 | 256,438 |
+| 17450 | 8 | 46 | 187,322 |
+| 14911 | 1 | 201 | 132,459 |
+| 12415 | 24 | 21 | 123,725 |
+| 14156 | 10 | 55 | 113,215 |
+
+Nhận xét:
+
+Khách `14911` có số hóa đơn cao nhất (201) trong nhóm Champions, thể hiện mức độ mua hàng rất thường xuyên. Khách `14646` dẫn đầu về Monetary và có Recency chỉ 2 ngày — khách hàng rất tích cực.
+
+---
+
+## 14.6. Quốc gia nào đóng góp doanh thu nhiều nhất?
+
+| Hạng | Quốc gia | Gross Revenue |
+|---|---|---|
+| 1 | United Kingdom | 9,001,744 |
+| 2 | Netherlands | 285,446 |
+| 3 | EIRE | 283,141 |
+| 4 | Germany | 228,678 |
+| 5 | France | 209,625 |
+| 6 | Australia | 138,454 |
+| 7 | Spain | 61,559 |
+| 8 | Switzerland | 57,068 |
+| 9 | Belgium | 41,196 |
+| 10 | Sweden | 38,368 |
+
+Nhận xét:
+
+United Kingdom chiếm khoảng **84.6%** gross revenue. Khoảng cách giữa UK và các nước còn lại rất lớn nên biểu đồ dùng thang logarit để thể hiện rõ sự khác biệt.
+
+---
+
+## 14.7. Khách hàng nào đã lâu không quay lại mua hàng?
+
+Nhóm Lost và At Risk gồm **1,692 khách**.
+
+Những khách có Recency lớn nhất (lên tới 374 ngày) hầu hết chỉ mua 1 lần với giá trị nhỏ:
+
+| CustomerID | Segment | Recency (ngày) | Frequency | Monetary |
+|---|---|---|---|---|
+| 18074 | Lost | 374 | 1 | 489.60 |
+| 14729 | Lost | 374 | 1 | 313.49 |
+| 17968 | Lost | 374 | 1 | 265.10 |
+
+---
+
+## 14.8. Sản phẩm nào thường xuyên xuất hiện trong các đơn bị hủy?
+
+| Hạng | Sản phẩm | Số hóa đơn hủy | Giá trị hủy |
+|---|---|---|---|
+| 1 | Manual (mã nghiệp vụ) | 223 | 146,784 |
+| 2 | REGENCY CAKESTAND 3 TIER | 180 | 9,697 |
+| 3 | POSTAGE | 124 | 11,871 |
+| 4 | JAM MAKING SET WITH JARS | 87 | 1,013 |
+| 5 | SET OF 3 CAKE TINS PANTRY DESIGN | 73 | 730 |
+| 6 | Discount | 65 | 5,696 |
+
+Nhận xét:
+
+Sản phẩm thật bị hủy nhiều nhất là **REGENCY CAKESTAND 3 TIER** với 180 hóa đơn hủy — đây cũng là sản phẩm có doanh thu cao thứ hai. Khách `14911` có nhiều dòng hủy nhất trong toàn bộ dataset (226 dòng).
+
+---
+
+## 14.9. Phân phối giá trị đơn hàng
+
+| Chỉ số | Giá trị |
+|---|---|
+| Min | 0.38 |
+| Q1 | 151.70 |
+| Median | 303.30 |
+| Mean | 533.17 |
+| Q3 | 493.46 |
+| Max | 168,469.60 |
+
+Nhận xét:
+
+Mean (533.17) lớn hơn đáng kể so với Median (303.30), phản ánh phân phối lệch phải: phần lớn đơn hàng có giá trị vừa phải nhưng tồn tại một số đơn rất lớn kéo trung bình lên. Đây là bằng chứng trực quan bổ sung cho kết quả phát hiện outlier ở phần 11.
+
+---
+
+# 15. Kết luận tổng hợp
+
+## 15.1. Kết quả chính
+
+Phân tích trả lời được toàn bộ 8 câu hỏi nghiên cứu dựa trên dữ liệu thực:
+
+| Câu hỏi | Kết quả |
+|---|---|
+| 1. Doanh thu theo thời gian | Đỉnh tháng 11/2011 (1.50M); Q4 chiếm ~34.9% tổng gross revenue |
+| 2. Sản phẩm bán nhiều nhất | PAPER CRAFT, LITTLE BIRDIE — 80,995 (đơn lớn nhất bị hủy ngay sau đó) |
+| 3. Sản phẩm doanh thu cao nhất | REGENCY CAKESTAND 3 TIER nếu loại mã phí — 174,157 |
+| 4. Phân khúc giá lượng mua cao | Low (≤ 1.25) — 2.9M sản phẩm; Premium tạo doanh thu cao nhất |
+| 5. Khách chi tiêu nhiều và thường xuyên | ID 14646 (279K, 73 hóa đơn); ID 14911 (201 hóa đơn) |
+| 6. Quốc gia đóng góp nhiều nhất | United Kingdom — 84.6% gross revenue |
+| 7. Khách lâu không quay lại | 1,692 khách Lost + At Risk; Recency lớn nhất 374 ngày |
+| 8. Sản phẩm hay bị hủy | REGENCY CAKESTAND 3 TIER — 180 hóa đơn hủy |
+
+## 15.2. Insight kinh doanh
+
+**Doanh thu tập trung cao:**
+
+Nhóm Champions (29.8% khách) tạo ra khoảng **75.2% doanh thu ròng**. Đây là nhóm khách hàng cốt lõi cần được ưu tiên duy trì bằng loyalty program và ưu đãi dành riêng.
+
+**Rủi ro nhóm At Risk:**
+
+862 khách At Risk từng có Monetary trung bình 1,474/khách nhưng Recency trung vị đã lên 95 ngày. Nếu không có can thiệp kịp thời, nhóm này có thể chuyển sang Lost và mất đi ~15.3% doanh thu ròng.
+
+**Tính mùa vụ Q4:**
+
+Ba tháng cuối năm (tháng 9–11) chiếm gần 35% doanh thu. Đây là cơ sở để chuẩn bị tồn kho và triển khai marketing sớm từ tháng 8–9.
+
+**Mâu thuẫn giữa số lượng và doanh thu:**
+
+Phân khúc Low bán nhiều nhất (2.9M) nhưng doanh thu thấp hơn Premium (3.8M dù chỉ bán 0.5M sản phẩm). Chiến lược giá cần xem xét đồng thời cả hai chiều.
+
+**Sản phẩm bị hủy đáng chú ý:**
+
+REGENCY CAKESTAND 3 TIER vừa là sản phẩm doanh thu cao thứ hai, vừa là sản phẩm thật bị hủy nhiều nhất (180 hóa đơn). Cần điều tra nguyên nhân để giảm tỉ lệ hủy.
+
+## 15.3. Đề xuất hành động
+
+- **Champions:** duy trì engagement bằng loyalty program và ưu đãi cá nhân hóa để giữ nhóm tạo 75% doanh thu.
+- **At Risk:** triển khai win-back campaign (email, voucher) trước khi Recency vượt 120 ngày.
+- **Mùa vụ:** chuẩn bị tồn kho và chiến dịch marketing từ tháng 8–9 cho giai đoạn cao điểm Q4.
+- **REGENCY CAKESTAND 3 TIER:** điều tra nguyên nhân tỉ lệ hủy cao để giảm thiệt hại doanh thu.
+- **Dữ liệu thiếu CustomerID:** xem xét thu thập CustomerID đầy đủ hơn để mở rộng phạm vi phân tích RFM.
+
+---
+
+# 16. Giới hạn của phân tích
+
+Các điểm sau phản ánh phạm vi và hạn chế của phân tích hiện tại:
+
+**1. Doanh thu là gross, chưa trừ đơn hủy.**
+
+Phân tích doanh thu theo tháng, quốc gia và sản phẩm chỉ tính giao dịch bán hàng bình thường. Giá trị hủy (~893,980, khoảng 8.4% gross) chỉ được trừ vào Monetary trong RFM, không áp dụng cho các bảng doanh thu còn lại.
+
+**2. Khoảng 25% dòng thiếu CustomerID.**
+
+132,565 dòng (24.8%) không có CustomerID nên không đưa được vào phân tích RFM. Phân tích hành vi khách hàng chỉ bao phủ 4,338 khách xác định được.
+
+**3. Tháng 12/2011 không đầy đủ.**
+
+Dữ liệu dừng ở ngày 09/12/2011, nên mức giảm cuối biểu đồ doanh thu không phản ánh xu hướng thực của tháng 12.
+
+**4. Dữ liệu chỉ kéo dài khoảng 1 năm.**
+
+Chưa đủ để kết luận chắc chắn về tính mùa vụ qua nhiều năm. Kết luận về Q4 cần được kiểm chứng bằng dữ liệu nhiều năm hơn.
+
+**5. Doanh thu tập trung ở thị trường Anh.**
+
+United Kingdom chiếm 84.6% gross revenue, nên các kết luận chung chủ yếu phản ánh thị trường này. Phân tích theo từng quốc gia cụ thể cần dataset riêng.
+
+**6. Mã phí và nghiệp vụ nội bộ lẫn trong dữ liệu sản phẩm.**
+
+Các mã như `DOT` (DOTCOM POSTAGE), `POST`, `M` (Manual), `AMAZONFEE` chiếm khoảng 3.7% doanh thu bán hàng. Nhóm giữ nguyên và ghi chú thay vì tự động loại, để tránh mất thông tin.
+
+**7. Outlier được giữ lại.**
+
+Phân tích không tự động xóa outlier vì chúng phản ánh nghiệp vụ thực tế (đơn hàng số lượng lớn, mã phí đặc biệt). Người dùng cần diễn giải kết quả thống kê với lưu ý này.
