@@ -43,11 +43,16 @@ def validate_results(
             (~segments[column].isin([1, 2, 3, 4])).sum()
         )
 
-    checks["inconsistent_frequency_score"] = int(
-        (segments.groupby("Frequency")["F_Score"].nunique() > 1).sum()
+    # F_Score phải không giảm khi Frequency tăng (khách mua nhiều hơn không được điểm thấp hơn)
+    sorted_f = segments[["Frequency", "F_Score"]].sort_values("Frequency")
+    checks["non_monotonic_f_score"] = int(
+        not sorted_f["F_Score"].is_monotonic_increasing
     )
-    checks["inconsistent_recency_score"] = int(
-        (segments.groupby("Recency")["R_Score"].nunique() > 1).sum()
+
+    # R_Score phải không tăng khi Recency tăng (khách lâu hơn không được điểm cao hơn)
+    sorted_r = segments[["Recency", "R_Score"]].sort_values("Recency")
+    checks["non_monotonic_r_score"] = int(
+        not sorted_r["R_Score"].is_monotonic_decreasing
     )
 
     print("Validation results:")

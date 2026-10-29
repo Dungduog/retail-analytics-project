@@ -140,6 +140,12 @@ def run_eda(
     cancelled_products = cancelled_products_all.head(20)
     _save_table(cancelled_products, tables_path, "cancelled_products.csv")
 
+    # Top theo giá trị hủy — xếp hạng độc lập (khác với top theo số hóa đơn)
+    cancelled_products_by_value = (
+        cancelled_products_all.nlargest(20, "CancelledValue")
+    )
+    _save_table(cancelled_products_by_value, tables_path, "cancelled_products_by_value.csv")
+
     # Giá trị đơn hàng được tính ở cấp InvoiceNo, không phải từng dòng sản phẩm.
     order_values = (
         sales.groupby("InvoiceNo", as_index=False)["Revenue"]
