@@ -15,8 +15,8 @@ def analyze_outliers(
     outlier_file: Union[str, Path],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Phân tích Revenue, Quantity và UnitPrice trên normal sales."""
-    data = pd.read_csv(input_file)
-    cancelled = data["IsCancelled"].astype(str).str.lower().eq("true")
+    data = pd.read_csv(input_file, true_values=["True"], false_values=["False"])
+    cancelled = data["IsCancelled"].astype(bool)
     sales = data[~cancelled].copy()
 
     summary_results = []
@@ -72,4 +72,3 @@ def analyze_outliers(
     details.to_csv(details_path, index=False)
 
     return summary, details
-

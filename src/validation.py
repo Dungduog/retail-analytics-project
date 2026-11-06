@@ -14,9 +14,14 @@ def validate_results(
     customer_file: Union[str, Path],
 ) -> dict[str, int]:
     """Chạy các kiểm tra chất lượng và trả về số lỗi của từng kiểm tra."""
-    cleaned = pd.read_csv(cleaned_file, parse_dates=["InvoiceDate"])
+    cleaned = pd.read_csv(
+        cleaned_file,
+        parse_dates=["InvoiceDate"],
+        true_values=["True"],
+        false_values=["False"],
+    )
     segments = pd.read_csv(customer_file)
-    cancelled = cleaned["IsCancelled"].astype(str).str.lower().eq("true")
+    cancelled = cleaned["IsCancelled"].astype(bool)
 
     expected_revenue = cleaned["Quantity"] * cleaned["UnitPrice"]
     expected_month = cleaned["InvoiceDate"].dt.to_period("M").astype(str)
@@ -59,4 +64,3 @@ def validate_results(
     for name, count in checks.items():
         print(f"- {name}: {count}")
     return checks
-

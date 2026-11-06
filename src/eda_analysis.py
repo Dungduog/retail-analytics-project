@@ -12,6 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 
 def _save_table(table: pd.DataFrame, output_dir: Path, name: str) -> None:
@@ -37,9 +38,14 @@ def run_eda(
     figures_path = Path(figures_dir)
     report_path = Path(report_file)
 
-    data = pd.read_csv(cleaned_path, parse_dates=["InvoiceDate"])
+    data = pd.read_csv(
+        cleaned_path,
+        parse_dates=["InvoiceDate"],
+        true_values=["True"],
+        false_values=["False"],
+    )
     customers = pd.read_csv(customer_path)
-    cancelled_mask = data["IsCancelled"].astype(str).str.lower().eq("true")
+    cancelled_mask = data["IsCancelled"].astype(bool)
     sales = data[~cancelled_mask].copy()
     cancellations = data[cancelled_mask].copy()
 
@@ -56,22 +62,20 @@ def run_eda(
 
     # 2-3. Sản phẩm theo số lượng và doanh thu.
     product_sales = sales.dropna(subset=["Description"]).copy()
-    top_products_quantity = (
-        product_sales.groupby(["StockCode", "Description"], as_index=False)[
-            "Quantity"
-        ]
-        .sum()
-        .sort_values("Quantity", ascending=False)
-        .head(20)
+    # Gộp theo StockCode để tránh cùng mã có nhiều Description chia doanh thu
+    product_name = (
+        product_sales.groupby("StockCode")["Description"]
+        .agg(lambda s: s.mode().iat[0])
+        .rename("Description")
     )
-    top_products_revenue = (
-        product_sales.groupby(["StockCode", "Description"], as_index=False)[
-            "Revenue"
-        ]
-        .sum()
-        .sort_values("Revenue", ascending=False)
-        .head(20)
+    prod_agg = (
+        product_sales.groupby("StockCode", as_index=False)
+        .agg(Quantity=("Quantity", "sum"), Revenue=("Revenue", "sum"))
     )
+    prod_agg["Description"] = prod_agg["StockCode"].map(product_name)
+
+    top_products_quantity = prod_agg.sort_values("Quantity", ascending=False).head(20)
+    top_products_revenue  = prod_agg.sort_values("Revenue",  ascending=False).head(20)
     _save_table(top_products_quantity, tables_path, "top_products_quantity.csv")
     _save_table(top_products_revenue, tables_path, "top_products_revenue.csv")
 
@@ -114,6 +118,15 @@ def run_eda(
     )
     _save_table(country_revenue, tables_path, "country_revenue.csv")
 
+    # UK vs Non-UK theo tháng
+    sales["Region"] = np.where(sales["Country"] == "United Kingdom", "UK", "Non-UK")
+    uk_vs_nonuk = (
+        sales.pivot_table(index="OrderMonth", columns="Region", values="Revenue", aggfunc="sum")
+        .reset_index()
+        .fillna(0)
+    )
+    _save_table(uk_vs_nonuk, tables_path, "uk_vs_nonuk_monthly.csv")
+
     # 7. Khách hàng lâu không quay lại.
     inactive_customers = (
         customers[customers["Segment"].isin(["Lost", "At Risk"])]
@@ -123,19 +136,25 @@ def run_eda(
     _save_table(inactive_customers, tables_path, "inactive_customers.csv")
 
     # 8. Sản phẩm xuất hiện nhiều trong cancellation invoices.
+    cancelled_sales = cancellations.dropna(subset=["Description"]).copy()
+    cancelled_product_name = (
+        cancelled_sales.groupby("StockCode")["Description"]
+        .agg(lambda s: s.mode().iat[0])
+        .rename("Description")
+    )
     cancelled_products_all = (
-        cancellations.dropna(subset=["Description"])
-        .groupby(["StockCode", "Description"], as_index=False)
+        cancelled_sales.groupby("StockCode", as_index=False)
         .agg(
             CancelledInvoiceCount=("InvoiceNo", "nunique"),
             CancelledRows=("InvoiceNo", "size"),
             CancelledQuantity=("Quantity", lambda values: values.abs().sum()),
             CancelledValue=("Revenue", lambda values: values.abs().sum()),
         )
-        .sort_values(
-            ["CancelledInvoiceCount", "CancelledQuantity"],
-            ascending=False,
-        )
+    )
+    cancelled_products_all["Description"] = cancelled_products_all["StockCode"].map(cancelled_product_name)
+    cancelled_products_all = cancelled_products_all.sort_values(
+        ["CancelledInvoiceCount", "CancelledQuantity"],
+        ascending=False,
     )
     cancelled_products = cancelled_products_all.head(20)
     _save_table(cancelled_products, tables_path, "cancelled_products.csv")
@@ -309,6 +328,108 @@ def run_eda(
     fig.savefig(figures_path / "cancelled_products.png", dpi=160)
     plt.close(fig)
 
+    # Heatmap tương quan R/F/M (log-scale vì phân phối lệch phải)
+    rfm_cols = ["Recency", "Frequency", "Monetary"]
+    rfm_log = np.log1p(customers[rfm_cols].clip(lower=0))
+    corr = rfm_log.corr()
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(corr.values, cmap="coolwarm", vmin=-1, vmax=1)
+    fig.colorbar(im, ax=ax)
+    ax.set_xticks(range(len(rfm_cols)))
+    ax.set_yticks(range(len(rfm_cols)))
+    ax.set_xticklabels(rfm_cols, rotation=30, ha="right")
+    ax.set_yticklabels(rfm_cols)
+    for i in range(len(rfm_cols)):
+        for j in range(len(rfm_cols)):
+            ax.text(j, i, f"{corr.iloc[i, j]:.2f}", ha="center", va="center", fontsize=11,
+                    color="white" if abs(corr.iloc[i, j]) > 0.5 else "black")
+    ax.set_title("RFM Correlation Heatmap (log-scale)")
+    fig.tight_layout()
+    fig.savefig(figures_path / "rfm_correlation_heatmap.png", dpi=160)
+    plt.close(fig)
+
+    # Scatter Frequency vs Monetary (log-log), tô màu theo Segment
+    seg_palette = {
+        "Champions": "#2A9D8F", "Loyal Customers": "#457B9D",
+        "Regular Customers": "#A8DADC", "At Risk": "#E76F51", "Lost": "#6C757D"
+    }
+    fig, ax = plt.subplots(figsize=(9, 6))
+    for seg, grp in customers.groupby("Segment"):
+        ax.scatter(
+            np.log1p(grp["Frequency"]),
+            np.log1p(grp["Monetary"].clip(lower=0)),
+            label=seg, alpha=0.5, s=20,
+            color=seg_palette.get(seg, "#999999")
+        )
+    ax.set_xlabel("log1p(Frequency)")
+    ax.set_ylabel("log1p(Monetary)")
+    ax.set_title("Frequency vs Monetary by Customer Segment (log scale)")
+    ax.legend(fontsize=8, markerscale=2)
+    fig.tight_layout()
+    fig.savefig(figures_path / "rfm_scatter_freq_monetary.png", dpi=160)
+    plt.close(fig)
+
+    # Cohort retention heatmap
+    cust_sales = sales.dropna(subset=["CustomerID"]).copy()
+    cust_sales["CustomerID"] = cust_sales["CustomerID"].astype(int)
+    cust_sales["InvoiceMonth"] = cust_sales["InvoiceDate"].dt.to_period("M")
+    cohort_month = (
+        cust_sales.groupby("CustomerID")["InvoiceMonth"]
+        .min()
+        .rename("CohortMonth")
+    )
+    cust_sales = cust_sales.join(cohort_month, on="CustomerID")
+    cust_sales["CohortIndex"] = (
+        (cust_sales["InvoiceMonth"] - cust_sales["CohortMonth"])
+        .apply(lambda x: x.n)
+    )
+    cohort_data = (
+        cust_sales.groupby(["CohortMonth", "CohortIndex"])["CustomerID"]
+        .nunique()
+        .reset_index()
+    )
+    cohort_pivot = cohort_data.pivot_table(
+        index="CohortMonth", columns="CohortIndex", values="CustomerID"
+    )
+    cohort_size = cohort_pivot.iloc[:, 0]
+    retention = cohort_pivot.divide(cohort_size, axis=0).round(3)
+
+    fig, ax = plt.subplots(figsize=(14, 8))
+    im = ax.imshow(retention.values, cmap="YlOrRd_r", vmin=0, vmax=1, aspect="auto")
+    fig.colorbar(im, ax=ax, label="Retention Rate")
+    ax.set_xticks(range(retention.shape[1]))
+    ax.set_xticklabels([f"M+{i}" for i in retention.columns], fontsize=8)
+    ax.set_yticks(range(retention.shape[0]))
+    ax.set_yticklabels([str(m) for m in retention.index], fontsize=8)
+    for i in range(retention.shape[0]):
+        for j in range(retention.shape[1]):
+            val = retention.iloc[i, j]
+            if not np.isnan(val):
+                ax.text(j, i, f"{val:.0%}", ha="center", va="center",
+                        fontsize=7, color="black" if val > 0.3 else "white")
+    ax.set_title("Customer Cohort Retention by Month")
+    ax.set_xlabel("Months since first purchase")
+    ax.set_ylabel("Cohort (first purchase month)")
+    fig.tight_layout()
+    fig.savefig(figures_path / "cohort_retention_heatmap.png", dpi=160)
+    plt.close(fig)
+    _save_table(retention.reset_index(), tables_path, "cohort_retention.csv")
+
+    # UK vs Non-UK theo thang
+    fig, ax = plt.subplots(figsize=(12, 5))
+    for col, color in [("UK", "#2F6690"), ("Non-UK", "#E76F51")]:
+        if col in uk_vs_nonuk.columns:
+            ax.plot(uk_vs_nonuk["OrderMonth"], uk_vs_nonuk[col],
+                    marker="o", label=col, color=color, linewidth=2)
+    ax.set_title("Monthly Gross Revenue: UK vs Non-UK")
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Revenue (GBP)")
+    ax.legend()
+    ax.tick_params(axis="x", rotation=45)
+    fig.tight_layout()
+    fig.savefig(figures_path / "uk_vs_nonuk_monthly.png", dpi=160)
+    plt.close(fig)
+
     peak_month = monthly_revenue.loc[monthly_revenue["Revenue"].idxmax()]
     top_quantity = top_products_quantity.iloc[0]
     top_revenue = top_products_revenue.iloc[0]
@@ -388,4 +509,5 @@ def run_eda(
         "inactive_customers": inactive_customers,
         "cancelled_products": cancelled_products,
         "order_values": order_values,
+        "uk_vs_nonuk": uk_vs_nonuk,
     }

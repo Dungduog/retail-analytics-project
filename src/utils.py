@@ -40,3 +40,14 @@ def assign_rfm_segment(r_score: int, f_score: int, m_score: int) -> str:
         return "Lost"                     # r kém, f và m đều thấp
     return "Regular Customers"            # gần đây nhưng tần suất / giá trị thấp
 
+
+def load_cleaned(path: Any) -> "pd.DataFrame":
+    """Đọc cleaned_retail.csv với kiểu đúng, tránh lặp đoạn parse IsCancelled."""
+    import pandas as pd
+    df = pd.read_csv(
+        path,
+        parse_dates=["InvoiceDate"],
+        true_values=["True"],
+        false_values=["False"],
+    )
+    return df
