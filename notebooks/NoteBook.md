@@ -313,27 +313,45 @@ Giá trị âm giúp thể hiện phần doanh thu bị hoàn trả hoặc hủy
 
 ---
 
-## 7.9. Kết quả sau cleaning
+## 7.9. Chuẩn hóa dữ liệu & Tách mã nghiệp vụ
 
-Dữ liệu ban đầu:
+Trước khi xuất dữ liệu sạch, pipeline thực hiện thêm 2 bước chuẩn hóa quan trọng:
 
-**541,909 dòng**
+1. **Chuẩn hóa chuỗi và định dạng mã:**
+   - `InvoiceNo` và `StockCode` được ép kiểu chuỗi, cắt khoảng trắng thừa (`str.strip()`).
+   - `StockCode` được chuyển toàn bộ sang chữ in hoa (`str.upper()`), giúp gom 110 mã bị trùng lặp do khác biệt chữ hoa/thường (ví dụ `85123a` và `85123A`), đưa số mã sản phẩm duy nhất từ 3,938 về **3,828 mã**.
+   - `Description` được cắt tỉa khoảng trắng đầu/cuối.
 
-Sau quá trình cleaning:
+2. **Gắn cờ mã phi sản phẩm (`IsNonProduct`):**
+   - Đánh dấu 10 mã dịch vụ/chi phí hệ thống: `DOT` (DOTCOM POSTAGE), `POST` (POSTAGE), `M` (Manual), `AMAZONFEE`, `B` (Adjust bad debt), `C2` (Carriage), `BANK CHARGES`, `S` (Samples), `D` (Discount), `CRUK` (CRUK Commission).
+   - Nhóm này chiếm ~3.70% doanh thu bán hàng. Việc tạo cờ boolean `IsNonProduct` giúp các phân tích sản phẩm bán lẻ dễ dàng lọc bỏ các mã này mà không làm mất thông tin tài chính chung.
 
-**534,129 dòng**
+---
 
-Dataset sau cleaning có thêm các thuộc tính:
+## 7.10. Kết quả sau cleaning & Cleaning Log
 
-- `IsCancelled`
-- `OrderMonth`
-- `Revenue`
+Quá trình làm sạch dữ liệu ghi nhận chi tiết qua từng bước:
+
+| Bước làm sạch | Số dòng ban đầu | Số dòng bị loại | Số dòng còn lại | Ghi chú lý do |
+|---|---|---|---|---|
+| **1. Dữ liệu gốc** | — | — | **541,909** | Kích thước ban đầu |
+| **2. Deduplication** | 541,909 | 5,268 | 536,641 | Loại bỏ các dòng trùng lặp toàn bộ |
+| **3. Lọc UnitPrice > 0** | 536,641 | 2,512 | 534,129 | Loại bỏ đơn giá bằng 0 hoặc âm |
+| **4. Lọc Quantity âm phi hủy** | 534,129 | 0 | 534,129 | Toàn bộ dòng Qty âm còn lại đều là đơn hủy hợp lệ (Invoice bắt đầu bằng C) |
+| **Tổng kết** | **541,909** | **7,780** | **534,129** | Giảm 1.44% tổng số dòng |
+
+Dataset sau cleaning có thêm các thuộc tính mới:
+
+- `IsCancelled` (boolean): đánh dấu đơn hủy.
+- `IsNonProduct` (boolean): đánh dấu mã dịch vụ/phí vận chuyển.
+- `OrderMonth` (chuỗi `YYYY-MM`): phục vụ phân tích xu hướng thời gian.
+- `Revenue` (float): `Quantity * UnitPrice` (âm với đơn hủy, dương với đơn bán).
 
 Kết quả được xuất thành:
 
-`cleaned_retail.csv`
+`data/processed/cleaned_retail.csv`
 
-File này được sử dụng làm nguồn dữ liệu chính cho các bước phân tích tiếp theo.
+File này là nguồn dữ liệu chuẩn mực cho tất cả các bước phân tích downstream.
 
 ---
 
@@ -538,6 +556,36 @@ Ví dụ, khách hàng `12346` có:
 - Segment = Lost
 
 Trường hợp này cho thấy việc trừ cancellation khỏi Monetary là cần thiết để đánh giá đúng giá trị thực tế của khách hàng.
+
+### Xử lý khách hàng có Monetary âm (`HasNegativeMonetary`)
+
+Trong quá trình phân tích, nhóm phát hiện **8 khách hàng** có giá trị hoàn trả vượt quá tổng giá trị mua hàng trong giai đoạn theo dõi (ví dụ đơn mua diễn ra trước thời điểm ghi nhận dữ liệu hoặc đơn đổi trả phát sinh chênh lệch).
+
+Để đảm bảo tính hợp lệ của phân vị và xếp hạng công bằng:
+- Thuật toán gắn cờ `HasNegativeMonetary = True`.
+- Kẹp giá trị `Monetary` về mức tối thiểu bằng 0 (`Monetary.clip(lower=0)`), tránh làm lệch ngưỡng tính `M_Score`.
+
+---
+
+## 10.4. Phân tích tương quan RFM & Biểu đồ phân tán (Scatter Plot)
+
+Để kiểm chứng tính độc lập và ý nghĩa tương tác giữa 3 chỉ số R, F, M, nhóm xây dựng **RFM Correlation Heatmap** và **Scatter Plot** phân bố khách hàng.
+
+### Tương quan Pearson giữa Recency, Frequency và Monetary
+
+Ma trận tương quan ghi nhận:
+- **Frequency và Monetary:** tương quan dương mạnh (**r ≈ 0.43**). Khách hàng mua sắm càng thường xuyên thì tích lũy chi tiêu ròng càng lớn.
+- **Recency và Frequency:** tương quan âm (**r ≈ -0.21**). Khách hàng mới quay lại mua hàng gần đây có tần suất mua cao hơn rõ rệt.
+- **Recency và Monetary:** tương quan âm nhẹ (**r ≈ -0.12**).
+
+Biểu đồ heatmap tương quan được lưu tại `reports/figures/rfm_correlation_heatmap.png`.
+
+### Biểu đồ phân tán Frequency vs Monetary (log scale) theo phân khúc
+
+Biểu đồ phân tán trên thang đo `log1p` (lưu tại `reports/figures/rfm_scatter_freq_monetary.png`) thể hiện cấu trúc phân cụm rất mạch lạc:
+- **Champions:** gom cụm chặt chẽ ở góc trên cùng bên phải (tần suất mua cao, chi tiêu lớn).
+- **Lost:** dồn về góc dưới bên trái (mua 1–2 lần với giá trị nhỏ).
+- **At Risk & Regular Customers:** phân bố trải rộng ở dải chuyển tiếp trung tâm — đây là vùng hành động chiến lược để kích hoạt chuyển đổi khách hàng tiềm năng lên nhóm Champions.
 
 ---
 
@@ -768,9 +816,34 @@ Gross revenue theo tháng (đơn vị GBP):
 
 Nhận xét:
 
-- Doanh thu cao nhất vào **tháng 11/2011** với 1,503,867.
+- Doanh thu cao nhất vào **tháng 11/2011** với 1,503,867 GBP.
 - Ba tháng 9, 10, 11 chiếm khoảng **34.9%** tổng gross revenue cả giai đoạn, phù hợp mùa mua sắm cuối năm trước Giáng sinh. (Lưu ý: Q4 theo lịch dương là tháng 10–12, chiếm ~30.9%; tháng 12 trong dataset chưa đầy đủ.)
 - Tháng 12/2011 thấp vì dữ liệu chỉ kéo dài đến ngày 09/12 — không phản ánh xu hướng thực.
+
+### Phân tích chuyên sâu: Doanh thu thị trường UK vs Non-UK theo tháng
+
+Để hiểu rõ cấu trúc doanh thu theo địa lý, nhóm tổng hợp bảng so sánh doanh thu nội địa (United Kingdom) và quốc tế (Non-UK) theo từng tháng (`reports/tables/uk_vs_nonuk_monthly.csv`):
+
+| Tháng | UK (GBP) | Non-UK (GBP) | Tổng cộng (GBP) | Tỷ trọng UK (%) |
+|---|---|---|---|---|
+| 2010-12 | 746,082 | 75,371 | 821,453 | 90.8% |
+| 2011-01 | 559,976 | 129,836 | 689,812 | 81.2% |
+| 2011-02 | 428,987 | 93,559 | 522,546 | 82.1% |
+| 2011-03 | 584,811 | 131,404 | 716,215 | 81.7% |
+| 2011-04 | 475,678 | 61,291 | 536,968 | 88.6% |
+| 2011-05 | 638,105 | 131,192 | 769,297 | 82.9% |
+| 2011-06 | 618,346 | 142,201 | 760,547 | 81.3% |
+| 2011-07 | 600,919 | 117,157 | 718,076 | 83.7% |
+| 2011-08 | 606,785 | 151,056 | 757,841 | 80.1% |
+| 2011-09 | 895,099 | 161,337 | 1,056,435 | 84.7% |
+| 2011-10 | 935,404 | 215,860 | 1,151,264 | 81.3% |
+| 2011-11 | 1,319,934 | 183,933 | 1,503,867 | 87.8% |
+| 2011-12 | 591,620 | 46,171 | 637,790 | 92.8% |
+
+**Nhận xét thị trường:**
+- **Thị trường Anh là động lực tăng trưởng:** Doanh thu UK chiếm bình quân 84.6% tổng doanh số và tạo nên toàn bộ sự bùng nổ cuối năm (tháng 9: 0.90M → tháng 11: 1.32M GBP).
+- **Thị trường quốc tế có tính ổn định cao:** Doanh thu ngoài UK dao động đều đặn trong dải 90k – 215k GBP/tháng, thể hiện nguồn cầu bền vững từ các đối tác bán buôn châu Âu (Hà Lan, Đức, Pháp, Ireland).
+- Biểu đồ đường so sánh được lưu tại `reports/figures/uk_vs_nonuk_monthly.png`.
 
 ---
 
@@ -881,30 +954,42 @@ Những khách có Recency lớn nhất (lên tới 374 ngày) hầu hết chỉ
 
 ## 14.8. Sản phẩm nào thường xuyên xuất hiện trong các đơn bị hủy?
 
-**Top 10 theo số hóa đơn hủy:**
+Để phân tích khách quan cả về mặt tần suất hủy lẫn tác động tài chính thực tế, nhóm xây dựng 2 bảng xếp hạng độc lập (dữ liệu từ `reports/tables/cancelled_products.csv` và `reports/tables/cancelled_products_by_value.csv`):
 
-| Hạng | Sản phẩm | Số hóa đơn hủy | Giá trị hủy |
+**Top 10 theo số lượng hóa đơn hủy (Tần suất hủy cao nhất):**
+
+| Hạng | Sản phẩm (Mã) | Số hóa đơn hủy | Giá trị hủy (GBP) |
 |---|---|---|---|
-| 1 | Manual (mã nghiệp vụ) | 223 | 146,784 |
-| 2 | REGENCY CAKESTAND 3 TIER | 180 | 9,697 |
-| 3 | POSTAGE | 124 | 11,871 |
-| 4 | JAM MAKING SET WITH JARS | 87 | 1,013 |
-| 5 | SET OF 3 CAKE TINS PANTRY DESIGN | 73 | 730 |
-| 6 | Discount | 65 | 5,696 |
+| 1 | Manual (`M`) | 223 | 146,784.46 |
+| 2 | REGENCY CAKESTAND 3 TIER (`22423`) | 180 | 9,697.05 |
+| 3 | POSTAGE (`POST`) | 124 | 11,871.24 |
+| 4 | JAM MAKING SET WITH JARS (`22960`) | 87 | 1,012.79 |
+| 5 | SET OF 3 CAKE TINS PANTRY DESIGN (`22720`) | 73 | 730.10 |
+| 6 | Discount (`D`) | 65 | 5,696.22 |
+| 7 | STRAWBERRY CERAMIC TRINKET BOX (`21232`) | 57 | 442.00 |
+| 8 | ROSES REGENCY TEACUP AND SAUCER (`22699`) | 54 | 1,150.35 |
+| 9 | POPCORN HOLDER (`22197`) | 50 | 366.55 |
+| 10 | RECIPE BOX PANTRY YELLOW DESIGN (`22666`) | 47 | 421.05 |
 
-**Top 10 theo giá trị hủy (độc lập):**
+**Top 10 theo giá trị tiền hoàn trả (Tác động tài chính lớn nhất):**
 
-| Hạng | Sản phẩm | Số hóa đơn hủy | Giá trị hủy |
+| Hạng | Sản phẩm (Mã) | Số hóa đơn hủy | Giá trị hủy (GBP) |
 |---|---|---|---|
-| 1 | AMAZON FEE (mã phí) | — | 235,281 |
-| 2 | PAPER CRAFT , LITTLE BIRDIE | — | 168,469 |
-| 3 | Manual (mã nghiệp vụ) | 223 | 146,784 |
-| 4 | DOTCOM POSTAGE (mã phí) | — | ~60,000+ |
-| 5 | … | … | … |
+| 1 | AMAZON FEE (`AMAZONFEE`) | 32 | 235,281.59 |
+| 2 | PAPER CRAFT , LITTLE BIRDIE (`23843`) | 1 | 168,469.60 |
+| 3 | Manual (`M`) | 223 | 146,784.46 |
+| 4 | MEDIUM CERAMIC TOP STORAGE JAR (`23166`) | 10 | 77,479.64 |
+| 5 | POSTAGE (`POST`) | 124 | 11,871.24 |
+| 6 | REGENCY CAKESTAND 3 TIER (`22423`) | 180 | 9,697.05 |
+| 7 | CRUK Commission (`CRUK`) | 16 | 7,933.43 |
+| 8 | Bank Charges (`BANK CHARGES`) | 25 | 7,340.64 |
+| 9 | WHITE HANGING HEART T-LIGHT HOLDER (`85123A`) | 42 | 6,624.30 |
+| 10 | FAIRY CAKE FLANNEL ASSORTED COLOUR (`21108`) | 3 | 6,591.42 |
 
 Nhận xét:
 
-Hai bảng độc lập cho thấy xếp hạng hoàn toàn khác nhau. Theo số hóa đơn hủy, **REGENCY CAKESTAND 3 TIER** đứng đầu sản phẩm thật (180 hóa đơn). Theo giá trị hủy, **AMAZON FEE** và **PAPER CRAFT, LITTLE BIRDIE** (đơn 80,995 sản phẩm bị hủy ngay) dẫn đầu về giá trị tiền hủy. Biểu đồ trong notebook thể hiện đầy đủ cả hai xếp hạng.
+- **Hai góc nhìn bổ trợ cho nhau:** Bảng tần suất phản ánh những mặt hàng hay gặp trục trặc khi đặt mua (sản phẩm thật bị hủy nhiều nhất là *REGENCY CAKESTAND 3 TIER* với 180 hóa đơn), trong khi bảng giá trị hoàn trả phản ánh các giao dịch cá biệt làm biến động dòng tiền (chủ yếu là chi phí sàn Amazon Fee, đơn hàng số lượng khủng của khách bán sỉ hoặc điều chỉnh Manual).
+- Biểu đồ đối chiếu trực quan được lưu tại `reports/figures/cancelled_products.png`.
 
 ---
 
@@ -925,83 +1010,79 @@ Mean (533.17) lớn hơn đáng kể so với Median (303.30), phản ánh phân
 
 ---
 
+## 14.10. Phân tích giữ chân khách hàng (Cohort Retention Analysis)
+
+Để trả lời câu hỏi cốt lõi về **tính bền vững của doanh nghiệp**: *"Khách hàng sau khi mua lần đầu có tiếp tục quay lại trong các tháng tiếp theo hay không?"*, nhóm thực hiện phân tích Cohort Retention trên toàn bộ các khách hàng định danh.
+
+Nhóm khách hàng (Cohort) được xác định bằng **tháng mua hàng đầu tiên** (`CohortMonth`). Tỷ lệ giữ chân (`Retention Rate`) được tính bằng tỷ lệ phần trăm số khách hàng trong cohort đó tiếp tục có phát sinh giao dịch mua hàng ở tháng thứ $N$ ($M+N$).
+
+Dữ liệu ma trận được lưu tại `reports/tables/cohort_retention.csv`:
+
+| Cohort | Quy mô (M0) | M+1 | M+2 | M+3 | M+4 | M+5 | M+6 | M+7 | M+8 | M+9 | M+10 | M+11 | M+12 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **2010-12** | 100% | **36.6%** | 32.3% | 38.4% | 36.3% | 39.8% | 36.3% | 34.9% | 35.4% | 39.5% | 37.4% | **50.3%** | 26.6% |
+| **2011-01** | 100% | 22.1% | 26.6% | 23.0% | 32.1% | 28.8% | 24.7% | 24.2% | 30.0% | 36.5% | 11.8% | — | — |
+| **2011-02** | 100% | 18.7% | 18.7% | 28.4% | 27.1% | 24.7% | 25.3% | 27.9% | 29.5% | 6.8% | — | — | — |
+| **2011-03** | 100% | 15.0% | 25.2% | 19.9% | 22.3% | 16.8% | 26.8% | 23.0% | 7.7% | — | — | — | — |
+| **2011-04** | 100% | 21.3% | 20.3% | 21.0% | 19.7% | 22.7% | 21.7% | 26.0% | 8.3% | — | — | — | — |
+| **2011-05** | 100% | 19.0% | 17.3% | 17.3% | 20.8% | 23.2% | 26.4% | 9.5% | — | — | — | — | — |
+| **2011-06** | 100% | 17.4% | 15.7% | 26.4% | 23.1% | 33.5% | 9.5% | — | — | — | — | — | — |
+| **2011-07** | 100% | 18.1% | 20.7% | 22.3% | 27.1% | 11.2% | — | — | — | — | — | — | — |
+| **2011-08** | 100% | 20.7% | 24.9% | 24.3% | 12.4% | — | — | — | — | — | — | — | — |
+| **2011-09** | 100% | 23.4% | 30.1% | 11.4% | — | — | — | — | — | — | — | — | — |
+| **2011-10** | 100% | 24.0% | 11.5% | — | — | — | — | — | — | — | — | — | — |
+| **2011-11** | 100% | 11.1% | — | — | — | — | — | — | — | — | — | — | — |
+| **2011-12** | 100% | — | — | — | — | — | — | — | — | — | — | — | — |
+
+**Nhận xét sâu về hành vi giữ chân khách hàng:**
+1. **Hiện tượng Drop-off sau tháng đầu tiên:** Ngay sau tháng gia nhập ($M+1$), tỷ lệ khách quay lại sụt giảm mạnh xuống còn khoảng **15% – 36.6%**. Điều này cho thấy đa số khách hàng là người mua vãng lai một lần.
+2. **Khách hàng cốt lõi ổn định ($M+2$ đến $M+10$):** Sau cú rơi ban đầu, tỷ lệ retention đi ngang và duy trì rất vững ở mức **20% – 30%**. Đây chính là tập khách hàng thân thiết đóng góp phần lớn doanh thu ổn định cho nhà bán lẻ.
+3. **Hiệu ứng mùa vụ tháng 11/2011:** Ở cột tháng 11/2011 (tương ứng với các mốc $M+11$ của cohort 2010-12, $M+9$ của cohort 2011-01,...), tỷ lệ quay lại vọt lên **50.3%** và **36.5%**, chứng minh sức hút mạnh mẽ của mùa mua sắm cuối năm đối với ngay cả những khách hàng cũ đã lâu không hoạt động.
+4. Biểu đồ nhiệt (Heatmap) thể hiện ma trận giữ chân được lưu tại `reports/figures/cohort_retention_heatmap.png`.
+
+---
+
 # 15. Kết luận tổng hợp
 
-## 15.1. Kết quả chính
+## 15.1. Bảng kết quả tổng hợp 8 câu hỏi nghiên cứu & phân tích mở rộng
 
-Phân tích trả lời được toàn bộ 8 câu hỏi nghiên cứu dựa trên dữ liệu thực:
-
-| Câu hỏi | Kết quả |
+| Chỉ tiêu / Câu hỏi nghiên cứu | Kết quả thực nghiệm cốt lõi |
 |---|---|
-| 1. Doanh thu theo thời gian | Đỉnh tháng 11/2011 (1.50M); tháng 9–11 chiếm ~34.9%, Q4 (10–12) chiếm ~30.9% gross revenue |
-| 2. Sản phẩm bán nhiều nhất | PAPER CRAFT, LITTLE BIRDIE — 80,995 (đơn lớn nhất bị hủy ngay sau đó) |
-| 3. Sản phẩm doanh thu cao nhất | REGENCY CAKESTAND 3 TIER nếu loại mã phí — 174,157 |
-| 4. Phân khúc giá lượng mua cao | Low (≤ 1.25) — 2.9M sản phẩm; Premium tạo doanh thu cao nhất |
-| 5. Khách chi tiêu nhiều và thường xuyên | ID 14646 (279K, 73 hóa đơn); ID 14911 nổi bật trong top Monetary (201 hóa đơn) |
-| 6. Quốc gia đóng góp nhiều nhất | United Kingdom — 84.6% gross revenue |
-| 7. Khách lâu không quay lại | 1,692 khách Lost + At Risk; Recency lớn nhất 374 ngày |
-| 8. Sản phẩm hay bị hủy | REGENCY CAKESTAND 3 TIER — 180 hóa đơn hủy; AMAZON FEE đứng đầu về giá trị hủy |
+| **1. Doanh thu theo thời gian** | Đạt đỉnh vào tháng 11/2011 với 1.50M GBP; ba tháng 9–11 chiếm 34.9% gross revenue; thị trường UK là động lực chính tạo nên đợt bùng nổ cuối năm. |
+| **2. Sản phẩm bán nhiều nhất** | *PAPER CRAFT, LITTLE BIRDIE* (80,995 đơn vị) và *MEDIUM CERAMIC TOP STORAGE JAR* (78,033 đơn vị) — các đơn đột biến này đều có phát sinh hoàn hủy lớn. |
+| **3. Sản phẩm doanh thu cao nhất** | Khi loại mã phí vận chuyển (`DOTCOM POSTAGE` 206K), **REGENCY CAKESTAND 3 TIER** đứng đầu với **174,157 GBP**. |
+| **4. Phân khúc giá chủ lực** | Phân khúc **Low** (≤ 1.25 GBP) đạt lượng bán lớn nhất (2.9M đơn vị); phân khúc **Premium** (> 4.13 GBP) đóng góp doanh thu cao nhất (3.8M GBP). |
+| **5. Khách hàng VIP (Champions)** | ID `14646` đứng đầu chi tiêu ròng (279K GBP, 73 hóa đơn); ID `14911` (201 hóa đơn) và ID `12748` (209 hóa đơn) có tần suất mua sắm dày đặc nhất. |
+| **6. Địa lý đóng góp doanh thu** | **United Kingdom** đóng góp 84.6% doanh thu (9.0M GBP); các nước ngoài UK duy trì ổn định đều đặn từ 100k–220k GBP/tháng. |
+| **7. Khách hàng có nguy cơ rời bỏ** | 2,180 khách hàng thuộc nhóm Lost và At Risk; thời gian không quay lại (Recency) dài nhất lên tới 374 ngày. |
+| **8. Sản phẩm trong đơn hủy** | Tần suất hủy cao nhất: *Manual* (223 đơn), *REGENCY CAKESTAND 3 TIER* (180 đơn); Giá trị hủy lớn nhất: *AMAZON FEE* (235K GBP), *PAPER CRAFT* (168K GBP). |
+| **9. Tương quan hành vi RFM** | Tần suất (Frequency) và Chi tiêu (Monetary) tương quan thuận mạnh ($r=0.43$); biểu đồ phân tán phân cụm rất mạch lạc. |
+| **10. Tỷ lệ giữ chân (Cohort Retention)** | Tỷ lệ quay lại tháng đầu ($M+1$) giảm về 18%–38%; duy trì ổn định 20%–25% ở các tháng tiếp theo; bật tăng mạnh vào tháng 11/2011. |
 
-## 15.2. Insight kinh doanh
+## 15.2. Insight kinh doanh chuyên sâu
 
-**Doanh thu tập trung cao:**
+1. **Hiệu ứng Pareto rõ nét:** Nhóm Champions chiếm ~29.8% số khách nhưng đóng góp tới **~75.2% Monetary ròng trong RFM** (~63.9% net revenue toàn bộ dataset). Doanh nghiệp phụ thuộc lớn vào nhóm khách hàng hạt nhân này.
+2. **Khách hàng quốc tế là "mỏ neo" ổn định:** Khác với sự trồi sụt theo mùa vụ của thị trường nội địa UK, doanh thu Non-UK duy trì đều đặn 100k–220k GBP mỗi tháng, đóng vai trò giảm thiểu rủi ro dòng tiền trong các tháng thấp điểm đầu năm.
+3. **Cú sốc tỷ lệ giữ chân tháng đầu ($M+1$):** Khoảng 65% – 80% khách hàng mới không bao giờ quay lại sau đơn hàng đầu tiên. Tuy nhiên, nhóm vượt qua được mốc $M+1$ sẽ có xu hướng gắn bó rất lâu dài (duy trì 20%–30% suốt cả năm).
+4. **Mâu thuẫn giữa quy mô bán và rủi ro hủy hàng:** Những mặt hàng bán chạy nhất (như *REGENCY CAKESTAND* hay *PAPER CRAFT*) lại chính là những mặt hàng nằm trong top đầu về số lượng và giá trị hủy đơn, đặt ra dấu hỏi lớn về khâu đóng gói, vận chuyển hàng dễ vỡ và chính sách bán buôn.
 
-Nhóm Champions (29.8% khách) tạo ra **~75.2% tổng Monetary của 4,338 khách RFM** (tương đương ~63.9% net revenue toàn dataset). Đây là nhóm khách hàng cốt lõi cần được ưu tiên duy trì bằng loyalty program và ưu đãi dành riêng.
+## 15.3. Đề xuất hành động chiến lược
 
-**Rủi ro nhóm At Risk:**
-
-862 khách At Risk có Monetary trung bình 1,474/khách và Recency trung vị 95 ngày. Nhóm này chiếm ~15.3% tổng Monetary trong RFM — đây là giá trị lịch sử, không phải dự báo doanh thu sẽ mất. Nếu không có can thiệp kịp thời, nguy cơ họ chuyển sang Lost là cao.
-
-**Mùa mua sắm cuối năm:**
-
-Ba tháng 9–11 chiếm ~34.9% gross revenue; Q4 lịch dương (10–12) chiếm ~30.9% (tháng 12 chưa đầy đủ). Đây là cơ sở để chuẩn bị tồn kho và triển khai marketing sớm từ tháng 8–9.
-
-**Mâu thuẫn giữa số lượng và doanh thu:**
-
-Phân khúc Low bán nhiều nhất (2.9M) nhưng doanh thu thấp hơn Premium (3.8M dù chỉ bán 0.5M sản phẩm). Chiến lược giá cần xem xét đồng thời cả hai chiều.
-
-**Sản phẩm bị hủy đáng chú ý:**
-
-REGENCY CAKESTAND 3 TIER vừa là sản phẩm doanh thu cao thứ hai, vừa là sản phẩm thật bị hủy nhiều nhất (180 hóa đơn). AMAZON FEE dẫn đầu về giá trị tiền hủy (235,281). Cần điều tra nguyên nhân để giảm tỉ lệ hủy.
-
-## 15.3. Đề xuất hành động
-
-- **Champions:** duy trì engagement bằng loyalty program và ưu đãi cá nhân hóa để giữ nhóm tạo ~75% Monetary RFM.
-- **At Risk:** triển khai win-back campaign (email, voucher) trước khi Recency vượt 120 ngày.
-- **Mùa mua sắm:** chuẩn bị tồn kho và chiến dịch marketing từ tháng 8–9 cho giai đoạn cao điểm tháng 9–11.
-- **REGENCY CAKESTAND 3 TIER:** điều tra nguyên nhân tỉ lệ hủy cao để giảm thiệt hại doanh thu.
-- **Dữ liệu thiếu CustomerID:** xem xét thu thập CustomerID đầy đủ hơn để mở rộng phạm vi phân tích RFM.
+- **Chiến lược VIP Loyalty cho nhóm Champions:** Cung cấp hạn mức tín dụng ưu đãi, quản lý tài khoản riêng (Dedicated Account Manager), và dịch vụ giao hàng ưu tiên để bảo vệ 75% dòng tiền cốt lõi.
+- **Chiến dịch Onboarding & Kích hoạt lần mua thứ hai ($M+1$):** Do tỷ lệ rơi rụng ở tháng đầu tiên là cao nhất, marketing cần tự động gửi email hướng dẫn, khảo sát trải nghiệm và voucher giảm giá lần 2 trong vòng 14–21 ngày kể từ lần mua đầu.
+- **Kế hoạch Win-back cho nhóm At Risk:** Tiếp cận 862 khách hàng At Risk bằng các ưu đãi phục hồi trước khi thời gian vắng mặt vượt quá 120 ngày (ngưỡng chuyển dịch sang nhóm Lost).
+- **Chuẩn bị chuỗi cung ứng quý 4:** Tăng công suất kho bãi, nhân sự vận hành và ngân sách quảng cáo từ tháng 8–9 để đón đầu đợt sóng mua sắm tháng 9–11 (giai đoạn đóng góp hơn 1/3 doanh thu cả năm).
+- **Cải tiến quy trình đóng gói và chính sách bán buôn:** Rà soát lại quy cách vận chuyển dòng sản phẩm gốm sứ / kệ bánh *REGENCY CAKESTAND* nhằm hạ thấp tỷ lệ hủy (180 hóa đơn hủy), giảm thiểu tổn thất vận hành.
 
 ---
 
 # 16. Giới hạn của phân tích
 
-Các điểm sau phản ánh phạm vi và hạn chế của phân tích hiện tại:
+Các điểm sau phản ánh phạm vi và giới hạn của nghiên cứu, cần lưu ý khi áp dụng vào thực tế:
 
-**1. Doanh thu là gross, chưa trừ đơn hủy.**
-
-Phân tích doanh thu theo tháng, quốc gia và sản phẩm chỉ tính giao dịch bán hàng bình thường. Giá trị hủy (~893,980, khoảng 8.4% gross) chỉ được trừ vào Monetary trong RFM, không áp dụng cho các bảng doanh thu còn lại.
-
-**2. Khoảng 25% dòng thiếu CustomerID.**
-
-132,565 dòng (24.8%) không có CustomerID nên không đưa được vào phân tích RFM. Phân tích hành vi khách hàng chỉ bao phủ 4,338 khách xác định được.
-
-**3. Tháng 12/2011 không đầy đủ.**
-
-Dữ liệu dừng ở ngày 09/12/2011, nên mức giảm cuối biểu đồ doanh thu không phản ánh xu hướng thực của tháng 12.
-
-**4. Dữ liệu chỉ kéo dài khoảng 1 năm.**
-
-Chưa đủ để kết luận chắc chắn về tính mùa vụ qua nhiều năm. Kết luận về Q4 cần được kiểm chứng bằng dữ liệu nhiều năm hơn.
-
-**5. Doanh thu tập trung ở thị trường Anh.**
-
-United Kingdom chiếm 84.6% gross revenue, nên các kết luận chung chủ yếu phản ánh thị trường này. Phân tích theo từng quốc gia cụ thể cần dataset riêng.
-
-**6. Mã phí và nghiệp vụ nội bộ lẫn trong dữ liệu sản phẩm.**
-
-Các mã như `DOT` (DOTCOM POSTAGE), `POST`, `M` (Manual), `AMAZONFEE` chiếm khoảng 3.7% doanh thu bán hàng. Nhóm giữ nguyên và ghi chú thay vì tự động loại, để tránh mất thông tin.
-
-**7. Outlier được giữ lại.**
-
-Phân tích không tự động xóa outlier vì chúng phản ánh nghiệp vụ thực tế (đơn hàng số lượng lớn, mã phí đặc biệt). Người dùng cần diễn giải kết quả thống kê với lưu ý này.
+1. **Doanh thu phân tích tổng quát là Gross Revenue:** Phân tích doanh thu theo thời gian, quốc gia và sản phẩm chỉ tính các giao dịch bán hàng bình thường. Giá trị hủy (~893,980 GBP, ~8.4% gross) chỉ được cấn trừ trong Monetary của bảng RFM, chưa áp dụng khấu trừ hồi tố ở từng dòng hóa đơn.
+2. **24.8% giao dịch thiếu CustomerID:** Có 132,565 dòng giao dịch không có mã khách hàng, buộc phải loại khỏi mô hình RFM và Cohort. Mô hình chỉ đại diện cho 4,338 khách hàng định danh.
+3. **Dữ liệu tháng 12/2011 không trọn vẹn:** Tập dữ liệu kết thúc vào ngày 09/12/2011, do đó mức sụt giảm ở tháng 12 không phản ánh thực tế kinh doanh cả tháng.
+4. **Giới hạn thời gian khảo sát (~1 năm):** Dataset chỉ bao gồm 12 tháng trọn vẹn và 1 tháng lẻ, do đó nhận định về tính mùa vụ cần được kiểm chứng thêm qua dữ liệu nhiều năm liên tiếp.
+5. **Đặc thù thị trường Anh:** UK chiếm gần 85% tổng doanh thu, do đó các quy luật rút ra chủ yếu phản ánh hành vi tiêu dùng và bán buôn tại Vương quốc Anh.
+6. **Mã phí và nghiệp vụ phi sản phẩm (`IsNonProduct`):** Chiếm ~3.7% doanh thu bán hàng. Pipeline đã tạo cờ đánh dấu riêng biệt; các phân tích chi tiết sản phẩm cần lưu ý loại trừ để tránh nhầm lẫn phí vận chuyển với hàng hóa thương mại.

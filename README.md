@@ -22,9 +22,11 @@ retail-analytics-project/
 │       ├── outlier_summary.csv
 │       └── outliers_detected.csv
 ├── notebooks/
+│   ├── eda_retail_analysis.ipynb
 │   └── NoteBook.md
 ├── reports/
 │   ├── eda_results.md
+│   ├── insight_report.md
 │   ├── figures/
 │   └── tables/
 ├── src/
@@ -42,22 +44,39 @@ retail-analytics-project/
 
 ## Phần đã triển khai
 
-- Data profiling và quy tắc data cleaning.
-- Loại exact duplicates.
-- Loại `UnitPrice <= 0`.
-- Giữ cancellation có `InvoiceNo` bắt đầu bằng `C`.
-- Loại `Quantity < 0` nếu không phải cancellation.
-- Giữ missing `CustomerID` trong transaction data và loại khỏi RFM.
-- Tạo `OrderMonth`, `Revenue` và `IsCancelled`.
-- Phân tích doanh thu theo tháng, quốc gia và sản phẩm.
-- RFM customer segmentation.
-- Thống kê NumPy và phát hiện outlier bằng IQR.
-- Validation cho cleaned data và customer segments.
-- EDA trả lời tám câu hỏi nghiên cứu bằng dữ liệu đã làm sạch.
-- Biểu đồ doanh thu tháng, top sản phẩm, phân khúc giá, giá trị đơn hàng và quốc gia.
-- Script Books to Scrape để thực hành HTTP GET, HTML, BeautifulSoup và pagination.
-
-Chi tiết phương pháp và kết quả hiện tại nằm trong `notebooks/NoteBook.md`.
+- **Data Profiling & Data Cleaning Pipeline:**
+  - Chuẩn hóa kiểu dữ liệu (`StockCode` uppercase, cắt khoảng trắng chuỗi).
+  - Loại bỏ 5,268 dòng duplicate hoàn toàn.
+  - Loại bỏ 2,512 dòng `UnitPrice <= 0`.
+  - Giữ lại cancellation có `InvoiceNo` bắt đầu bằng `C`.
+  - Tách cờ `IsNonProduct` cho 10 mã dịch vụ/phí vận chuyển (`DOT`, `POST`, `M`, `AMAZONFEE`,...).
+  - Giữ missing `CustomerID` trong transaction data và loại khỏi RFM.
+  - Tạo thuộc tính `OrderMonth`, `Revenue`, `IsCancelled`, `IsNonProduct`.
+- **Customer Segmentation bằng RFM:**
+  - Tính toán Recency, Frequency, GrossMonetary, CancelledValue và Monetary ròng.
+  - Gắn cờ `HasNegativeMonetary` và kẹp giá trị Monetary ròng về 0 cho 8 khách có đơn hoàn trả > đơn mua.
+  - Phân loại 5 nhóm khách hàng: *Champions*, *Loyal Customers*, *Regular Customers*, *At Risk*, *Lost*.
+  - Biểu đồ nhiệt tương quan RFM (`rfm_correlation_heatmap.png`).
+  - Biểu đồ phân tán Frequency vs Monetary theo phân khúc (`rfm_scatter_freq_monetary.png`).
+- **Phân tích giữ chân khách hàng (Cohort Retention):**
+  - Xây dựng ma trận retention theo tháng mua hàng đầu tiên ($M+0$ đến $M+12$).
+  - Xuất bảng `cohort_retention.csv` và biểu đồ nhiệt `cohort_retention_heatmap.png`.
+- **Thống kê NumPy & Outlier Detection:**
+  - Tính Mean, Median, Std, Q1, Q3, IQR cho `Revenue`, `Quantity`, `UnitPrice`.
+  - Xuất `outlier_summary.csv` và `outliers_detected.csv`.
+- **Kiểm định chất lượng dữ liệu (Validation):**
+  - 15 phép kiểm tra tự động chạy trên file đã làm sạch và phân khúc khách hàng (đạt 0 lỗi 15/15).
+- **Phân tích EDA & Trực quan hóa dữ liệu:**
+  - Trả lời đầy đủ 8 câu hỏi nghiên cứu và xuất 12 bảng số liệu trong `reports/tables/`.
+  - Phân tích chi tiết so sánh thị trường nội địa vs quốc tế: `uk_vs_nonuk_monthly.png` và `uk_vs_nonuk_monthly.csv`.
+  - Gom nhóm sản phẩm theo `StockCode` duy nhất để tránh phân mảnh tên mô tả.
+  - Tách bạch 2 bảng xếp hạng độc lập cho hàng hoàn hủy: Top 10 theo tần suất hóa đơn vs Top 10 theo giá trị tiền hoàn trả (`cancelled_products_by_value.csv`).
+- **Tài liệu & Báo cáo:**
+  - Jupyter Notebook đầy đủ code, output thực thi và nhận xét: `notebooks/eda_retail_analysis.ipynb`.
+  - Tài liệu chi tiết phương pháp luận: `notebooks/NoteBook.md`.
+  - Báo cáo tóm tắt insight kinh doanh cô đọng: `reports/insight_report.md`.
+- **Thực hành Web Scraping:**
+  - Script Books to Scrape (`src/book_scraper.py`) thực hành HTTP GET, HTML parsing với BeautifulSoup, xử lý pagination và xuất `data/external/books_scraped.csv`.
 
 ## Cài đặt
 
@@ -131,11 +150,10 @@ Tài liệu học:
 
 ## Các phần còn lại
 
-Các nội dung cần hoàn thiện cho bài nộp:
+Các nội dung cần chuẩn bị cho buổi báo cáo:
 
-- Jupyter Notebook `.ipynb` có code và output.
-- Phần kết luận cuối của toàn bộ project.
-- Slide thuyết trình.
+- Chuẩn bị Slide thuyết trình dựa trên `reports/insight_report.md` và `notebooks/NoteBook.md`.
+- Luyện tập thuyết trình demo trên `notebooks/eda_retail_analysis.ipynb`.
 
 Fake Store API không nằm trong phạm vi yêu cầu của giảng viên theo thông tin nhóm cung cấp.
 
