@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from src.build_web import build_web, export_web_tables
+
 from src.eda_analysis import run_eda
 from src.outlier_analysis import analyze_outliers
 from src.retail_data_processor import RetailDataProcessor
@@ -59,6 +61,8 @@ def main() -> None:
         figures_dir=PROJECT_ROOT / "reports" / "figures",
         report_file=PROJECT_ROOT / "reports" / "eda_results.md",
     )
+    export_web_tables(cleaned_file, customer_file)
+    build_web()
 
 
 if __name__ == "__main__":

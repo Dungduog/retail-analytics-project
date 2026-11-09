@@ -32,11 +32,16 @@ retail-analytics-project/
 ├── src/
 │   ├── __init__.py
 │   ├── book_scraper.py
+│   ├── build_web.py
 │   ├── eda_analysis.py
 │   ├── utils.py
 │   ├── retail_data_processor.py
 │   ├── outlier_analysis.py
 │   └── validation.py
+├── web/
+│   ├── index.html
+│   ├── data.js
+│   └── assets/figures/
 ├── main.py
 ├── requirements.txt
 └── README.md
@@ -96,7 +101,24 @@ python main.py
 
 Pipeline sẽ đọc `data/raw/Online_Retail.xlsx` và ghi lại bốn file trong
 `data/processed/`, các bảng EDA trong `reports/tables/` và biểu đồ trong
-`reports/figures/`.
+`reports/figures/`. Cuối pipeline, dashboard được cập nhật từ các bảng tổng hợp
+và biểu đồ vừa xuất.
+
+## Xem dashboard tĩnh
+
+Mở [`web/index.html`](web/index.html) bằng trình duyệt. Khi nộp bài, giữ nguyên
+cả thư mục `web/` để trang đọc được CSS, JavaScript và ảnh. Có thể mở trực
+tiếp từ ổ đĩa khi không có Internet.
+
+Để tạo lại `web/data.js` và sao chép ảnh từ các báo cáo đã có, chạy:
+
+```bash
+python src/build_web.py
+```
+
+`data.js` là tệp sinh tự động từ `reports/tables/`. Nếu cần cập nhật các bảng
+`dashboard_*.csv` từ hai CSV đã xử lý có sẵn, chạy
+`python src/build_web.py --refresh-tables`.
 
 ## Thực hành web scraping
 

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retail Analytics | PSD301M</title>
+  <link rel="stylesheet" href="dashboard.css">
+  <script src="data.js" defer></script>
+  <script src="dashboard.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#overview"><span class="logo" aria-hidden="true">▥</span> Retail Analytics</a>
+    <div class="nav-label">PHÂN TÍCH BÁN LẺ</div>
+    <nav aria-label="Các mục phân tích">
+      <a href="#overview"><span>01</span> Tổng quan</a>
+      <a href="#revenue"><span>02</span> Doanh thu</a>
+      <a href="#rankings"><span>03</span> Sản phẩm &amp; thị trường</a>
+      <a href="#rfm"><span>04</span> Khách hàng RFM</a>
+      <a href="#returns"><span>05</span> Đơn hủy &amp; bất thường</a>
+      <a href="#limits"><span>06</span> Giới hạn dữ liệu</a>
+    </nav>
+    <div class="sidebar-footer"><span>PSD301M</span><br>Python for Data Science</div>
+  </aside>
+  <main id="overview">
+    <header class="hero">
+      <div class="eyebrow"><span class="status"></span> ĐỒ ÁN PSD301M</div>
+      <h1>Tổng quan bán lẻ trực tuyến</h1>
+      <p>Doanh thu, khách hàng và giao dịch hoàn hủy trong bộ dữ liệu UCI Online Retail.</p>
+      <span class="period">01/12/2010 – 09/12/2011 <span>·</span> GBP</span>
+    </header>
+    <noscript><p class="notice">Bật JavaScript để hiển thị số liệu và biểu đồ từ data.js.</p></noscript>
+    <p id="data-error" class="notice" hidden>Không tìm thấy dữ liệu. Hãy mở index.html cùng thư mục với data.js.</p>
+    <div id="metrics" class="metrics" aria-label="Chỉ số tổng quan"></div>
+
+    <section id="revenue" class="panel">
+      <div class="section-head">
+        <div><div class="eyebrow">02 / DOANH THU</div><h2>Doanh thu theo tháng</h2></div>
+        <div id="peak" class="badge"></div>
+      </div>
+      <div class="chart-scroll" tabindex="0" aria-label="Biểu đồ doanh thu có thể cuộn ngang">
+        <svg id="monthly-chart" viewBox="0 0 920 290" role="img" aria-labelledby="chart-title chart-desc">
+          <title id="chart-title">Doanh thu gross theo tháng</title>
+          <desc id="chart-desc">Điểm tháng 12 năm 2011 chỉ gồm dữ liệu đến ngày 9. Xem bảng dưới biểu đồ để đọc từng giá trị.</desc>
+        </svg>
+      </div>
+      <p class="notice"><strong>12/2011*</strong> chỉ có dữ liệu đến ngày 09/12. Đoạn nét đứt đánh dấu tháng chưa đủ dữ liệu.</p>
+      <details><summary>Xem số liệu từng tháng</summary><ul id="monthly-values" class="monthly-values"></ul></details>
+    </section>
+
+    <section id="rankings" class="panel">
+      <div class="section-head">
+        <div><div class="eyebrow">03 / XẾP HẠNG</div><h2>Sản phẩm và thị trường</h2></div>
+        <div class="switch" role="group" aria-label="Tiêu chí xếp hạng">
+          <button type="button" data-metric="Revenue" aria-pressed="true">Theo doanh thu</button>
+          <button type="button" data-metric="Quantity" aria-pressed="false">Theo số lượng</button>
+        </div>
+      </div>
+      <p id="ranking-note" class="muted" aria-live="polite"></p>
+      <div class="split">
+        <div><h3>Top 10 mã hàng</h3><ol id="products" class="ranking"></ol></div>
+        <div><h3>Top 10 quốc gia</h3><ol id="countries" class="ranking"></ol></div>
+      </div>
+    </section>
+
+    <section id="rfm" class="panel">
+      <div class="eyebrow">04 / KHÁCH HÀNG</div><h2>Phân khúc RFM</h2>
+      <div class="split rfm">
+        <div><h3>Phân bố khách hàng định danh</h3><ol id="segments" class="ranking"></ol></div>
+        <figure>
+          <h3>Frequency và Monetary</h3>
+          <a href="assets/figures/rfm_scatter_freq_monetary.png"><img src="assets/figures/rfm_scatter_freq_monetary.png" alt="Biểu đồ phân tán tần suất mua và giá trị chi tiêu theo phân khúc RFM trên thang log"></a>
+          <figcaption>Monetary đã cấn trừ giá trị hủy. Biểu đồ log chỉ hiện giá trị dương. Chọn ảnh để xem kích thước đầy đủ.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="returns" class="panel">
+      <div class="eyebrow">05 / HOÀN HỦY</div><h2>Hai đơn hàng bất thường</h2>
+      <p class="muted">Hai dòng bán có số lượng rất lớn đều có dòng hủy tương ứng. Lượt bán ban đầu vẫn góp vào gross.</p>
+      <div id="cases" class="split"></div>
+      <div class="split refund">
+        <div><h3>Top 3 theo số hóa đơn hủy</h3><ol id="refund-frequency" class="ranking"></ol></div>
+        <div><h3>Top 3 theo giá trị hoàn trả</h3><ol id="refund-value" class="ranking"></ol></div>
+      </div>
+    </section>
+
+    <section id="limits" class="panel">
+      <div class="eyebrow">06 / PHƯƠNG PHÁP</div><h2>Giới hạn dữ liệu</h2>
+      <ul class="limits">
+        <li><strong>Thiếu mã khách hàng.</strong> <span id="missing-customers"></span> Những dòng này vẫn được tính vào doanh thu, nhưng được loại khỏi RFM và Cohort.</li>
+        <li><strong>Doanh thu gross.</strong> Các tổng doanh thu trên dashboard ghi nhận giao dịch bán trước khi trừ giá trị hoàn hủy.</li>
+        <li><strong>Phạm vi thời gian.</strong> Dữ liệu kéo dài khoảng một năm và chỉ tới 09/12/2011. Kết luận về mùa vụ cần thêm dữ liệu nhiều năm.</li>
+        <li><strong>Thiên về thị trường UK.</strong> Cơ cấu doanh thu phản ánh chủ yếu hoạt động bán hàng tại Vương quốc Anh.</li>
+        <li><strong>Mã phí và dịch vụ.</strong> Các bảng gross gốc có chứa mã phí như DOT, POST và Manual. Cần phân biệt chúng khi đánh giá hiệu quả hàng hóa.</li>
+      </ul>
+    </section>
+    <footer>UCI Online Retail <span>·</span> Retail Analytics Project <span>·</span> PSD301M</footer>
+  </main>
+</body>
+</html>
