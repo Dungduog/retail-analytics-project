@@ -35,16 +35,17 @@
 
     <section id="revenue" class="panel">
       <div class="section-head">
-        <div><div class="eyebrow">02 / DOANH THU</div><h2>Doanh thu theo tháng</h2></div>
+        <div><div class="eyebrow">02 / DOANH THU</div><h2>Doanh thu ròng theo tháng</h2></div>
         <div id="peak" class="badge"></div>
       </div>
       <div class="chart-scroll" tabindex="0" aria-label="Biểu đồ doanh thu có thể cuộn ngang">
         <svg id="monthly-chart" viewBox="0 0 920 290" role="img" aria-labelledby="chart-title chart-desc">
-          <title id="chart-title">Doanh thu gross theo tháng</title>
+          <title id="chart-title">Doanh thu ròng theo tháng</title>
           <desc id="chart-desc">Điểm tháng 12 năm 2011 chỉ gồm dữ liệu đến ngày 9. Xem bảng dưới biểu đồ để đọc từng giá trị.</desc>
         </svg>
       </div>
       <p class="notice"><strong>12/2011*</strong> chỉ có dữ liệu đến ngày 09/12. Đoạn nét đứt đánh dấu tháng chưa đủ dữ liệu.</p>
+      <p class="muted">Doanh thu ròng bằng doanh thu gross trừ giá trị hoàn hủy. Khoản hoàn hủy được ghi nhận vào tháng phát sinh hóa đơn hủy.</p>
       <details><summary>Xem số liệu từng tháng</summary><ul id="monthly-values" class="monthly-values"></ul></details>
     </section>
 
@@ -89,7 +90,6 @@
       <div class="eyebrow">06 / PHƯƠNG PHÁP</div><h2>Giới hạn dữ liệu</h2>
       <ul class="limits">
         <li><strong>Thiếu mã khách hàng.</strong> <span id="missing-customers"></span> Những dòng này vẫn được tính vào doanh thu, nhưng được loại khỏi RFM và Cohort.</li>
-        <li><strong>Doanh thu gross.</strong> Các tổng doanh thu trên dashboard ghi nhận giao dịch bán trước khi trừ giá trị hoàn hủy.</li>
         <li><strong>Phạm vi thời gian.</strong> Dữ liệu kéo dài khoảng một năm và chỉ tới 09/12/2011. Kết luận về mùa vụ cần thêm dữ liệu nhiều năm.</li>
         <li><strong>Thiên về thị trường UK.</strong> Cơ cấu doanh thu phản ánh chủ yếu hoạt động bán hàng tại Vương quốc Anh.</li>
         <li><strong>Mã phí và dịch vụ.</strong> Các bảng gross gốc có chứa mã phí như DOT, POST và Manual. Cần phân biệt chúng khi đánh giá hiệu quả hàng hóa.</li>

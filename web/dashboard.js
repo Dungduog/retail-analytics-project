@@ -4,6 +4,7 @@ const data = window.RETAIL_DATA;
 const byId = (id) => document.getElementById(id);
 const integer = new Intl.NumberFormat("vi-VN");
 const decimal = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
+const millions = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
 const money = (value) => `£${integer.format(Math.round(value))}`;
 const percent = (part, total) => `${decimal.format(100 * part / total)}%`;
 const monthLabel = (month) => `${month.slice(5)}/${month.slice(0, 4)}`;
@@ -18,11 +19,13 @@ function element(tag, text, className) {
 
 function renderMetrics() {
   const { SalesInvoices, CancelledInvoices, MissingCustomerRows, Rows } = data.summary;
-  const gross = data.monthly.reduce((total, row) => total + row.Revenue, 0);
+  const gross = data.monthly.reduce((total, row) => total + row.GrossRevenue, 0);
+  const refunds = data.monthly.reduce((total, row) => total + row.RefundValue, 0);
   const customers = data.segments.reduce((total, row) => total + row.Customers, 0);
   const uk = data.countryRevenue.find((row) => row.Country === "United Kingdom").Revenue;
   const metrics = [
-    ["Doanh thu gross", `£${decimal.format(gross / 1e6)} triệu`, money(gross)],
+    ["Doanh thu ròng", `£${millions.format((gross - refunds) / 1e6)} triệu`,
+      `Gross ${money(gross)} · Hoàn hủy ${money(refunds)}`],
     ["Khách định danh", integer.format(customers), "Có mặt trong bảng RFM"],
     ["Hóa đơn bán", integer.format(SalesInvoices), "InvoiceNo bán duy nhất"],
     ["Tỷ lệ hóa đơn hủy", percent(CancelledInvoices, SalesInvoices + CancelledInvoices),
@@ -41,14 +44,15 @@ function renderMetrics() {
 function renderChart() {
   const chart = byId("monthly-chart");
   const plot = { left: 62, right: 885, top: 24, bottom: 246 };
-  const peak = data.monthly.reduce((best, row) => row.Revenue > best.Revenue ? row : best);
+  const peak = data.monthly.reduce((best, row) => row.NetRevenue > best.NetRevenue ? row : best);
   const step = 250000;
-  const ceiling = Math.ceil(peak.Revenue / step) * step;
-  const y = (value) => plot.bottom - value / ceiling * (plot.bottom - plot.top);
+  const ceiling = Math.max(step, Math.ceil(peak.NetRevenue / step) * step);
+  const floor = Math.floor(Math.min(0, ...data.monthly.map((row) => row.NetRevenue)) / step) * step;
+  const y = (value) => plot.bottom - (value - floor) / (ceiling - floor) * (plot.bottom - plot.top);
   const points = data.monthly.map((row, index) => ({
     ...row,
     x: plot.left + index / (data.monthly.length - 1) * (plot.right - plot.left),
-    y: y(row.Revenue),
+    y: y(row.NetRevenue),
   }));
 
   function add(tag, attributes, label, parent = chart) {
@@ -63,7 +67,7 @@ function renderChart() {
   const gradient = add("linearGradient", { id: "revenue-fill", x2: "0%", y2: "100%" }, undefined, defs);
   add("stop", { offset: "0%", "stop-color": "#357ff0", "stop-opacity": ".35" }, undefined, gradient);
   add("stop", { offset: "100%", "stop-color": "#357ff0", "stop-opacity": ".02" }, undefined, gradient);
-  for (let value = 0; value <= ceiling; value += step) {
+  for (let value = floor; value <= ceiling; value += step) {
     add("line", { x1: plot.left, x2: plot.right, y1: y(value), y2: y(value), stroke: "#262b35" });
     add("text", { x: plot.left - 9, y: y(value) + 4, "text-anchor": "end" }, `£${value / 1000}k`);
   }
@@ -71,7 +75,7 @@ function renderChart() {
   const complete = points.filter((row) => row.OrderMonth !== partialMonth);
   const end = complete.at(-1);
   const line = complete.map((row) => `${row.x},${row.y}`).join(" ");
-  add("polygon", { points: `${plot.left},${plot.bottom} ${line} ${end.x},${plot.bottom}`, fill: "url(#revenue-fill)" });
+  add("polygon", { points: `${plot.left},${y(0)} ${line} ${end.x},${y(0)}`, fill: "url(#revenue-fill)" });
   add("polyline", { points: line, fill: "none", stroke: "#62a1ff", "stroke-width": 3, "stroke-linejoin": "round" });
   const partial = points.find((row) => row.OrderMonth === partialMonth);
   if (partial) {
@@ -81,12 +85,15 @@ function renderChart() {
   for (const row of points) {
     const label = monthLabel(row.OrderMonth) + (row === partial ? "*" : "");
     add("text", { x: row.x, y: 271, "text-anchor": "middle" }, label);
-    const dot = add("circle", { cx: row.x, cy: row.y, r: row.Revenue === peak.Revenue ? 6 : 4,
+    const dot = add("circle", { cx: row.x, cy: row.y, r: row.OrderMonth === peak.OrderMonth ? 6 : 4,
       fill: row === partial ? "#efbb64" : "#86b7ff", stroke: "#131519", "stroke-width": 2 });
-    add("title", {}, `${label} · ${money(row.Revenue)}`, dot);
-    byId("monthly-values").append(element("li", `${label} · ${money(row.Revenue)}`));
+    add("title", {}, `${label} · ${money(row.NetRevenue)} ròng`, dot);
+    const item = element("li");
+    item.append(element("strong", `${label} · ${money(row.NetRevenue)} ròng`),
+      element("span", `Gross ${money(row.GrossRevenue)} · Hoàn hủy ${money(row.RefundValue)}`));
+    byId("monthly-values").append(item);
   }
-  byId("peak").textContent = `Cao nhất · ${monthLabel(peak.OrderMonth)} · ${money(peak.Revenue)}`;
+  byId("peak").textContent = `Cao nhất · ${monthLabel(peak.OrderMonth)} · ${money(peak.NetRevenue)}`;
 }
 
 function renderRanking(id, rows, name, metric, format) {

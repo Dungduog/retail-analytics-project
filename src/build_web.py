@@ -33,6 +33,7 @@ def export_web_tables(cleaned_file, customer_file):
     """Export the aggregates that are missing from the original EDA tables."""
     sales, cancelled = set(), set()
     country_quantity = Counter()
+    monthly_refunds = Counter()
     examples = {}
     missing_customers = total_rows = 0
     for row in read_rows(cleaned_file):
@@ -42,6 +43,7 @@ def export_web_tables(cleaned_file, customer_file):
         missing_customers += not row["CustomerID"]
         if row["IsCancelled"] == "True":
             cancelled.add(invoice)
+            monthly_refunds[row["OrderMonth"]] -= float(row["Revenue"])
         else:
             sales.add(invoice)
             country_quantity[row["Country"]] += quantity
@@ -53,6 +55,8 @@ def export_web_tables(cleaned_file, customer_file):
                [(len(sales), len(cancelled), missing_customers, total_rows)])
     write_rows("dashboard_country_quantity", ("Country", "Quantity"), sorted(country_quantity.items()))
     write_rows("dashboard_segments", ("Segment", "Customers"), segments.most_common())
+    write_rows("dashboard_monthly_refunds", ("OrderMonth", "RefundValue"),
+               [(month, round(value, 2)) for month, value in sorted(monthly_refunds.items())])
 
     cases = []
     for invoice, cancellation in EXAMPLE_INVOICES.items():
@@ -74,10 +78,29 @@ def load_table(name, **numeric_columns):
 
 def build_web():
     """Generate the local script and copy the chart used by the HTML."""
+    gross = {
+        row["OrderMonth"]: row["Revenue"]
+        for row in load_table("monthly_revenue", Revenue=float)
+    }
+    refunds = {
+        row["OrderMonth"]: row["RefundValue"]
+        for row in load_table("dashboard_monthly_refunds", RefundValue=float)
+    }
+    monthly = []
+    for month in sorted(gross.keys() | refunds.keys()):
+        gross_value = gross.get(month, 0)
+        refund_value = refunds.get(month, 0)
+        monthly.append({
+            "OrderMonth": month,
+            "GrossRevenue": gross_value,
+            "RefundValue": refund_value,
+            "NetRevenue": round(gross_value - refund_value, 2),
+        })
+
     data = {
         "summary": load_table("dashboard_summary", SalesInvoices=int, CancelledInvoices=int,
                               MissingCustomerRows=int, Rows=int)[0],
-        "monthly": load_table("monthly_revenue", Revenue=float),
+        "monthly": monthly,
         "productQuantity": load_table("top_products_quantity", Quantity=int)[:10],
         "productRevenue": load_table("top_products_revenue", Revenue=float)[:10],
         "countryRevenue": load_table("country_revenue", Revenue=float),

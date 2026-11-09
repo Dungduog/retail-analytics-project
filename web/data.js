@@ -9,55 +9,81 @@ window.RETAIL_DATA = {
   "monthly": [
     {
       "OrderMonth": "2010-12",
-      "Revenue": 821452.73
+      "GrossRevenue": 821452.73,
+      "RefundValue": 74729.12,
+      "NetRevenue": 746723.61
     },
     {
       "OrderMonth": "2011-01",
-      "Revenue": 689811.61
+      "GrossRevenue": 689811.61,
+      "RefundValue": 131363.05,
+      "NetRevenue": 558448.56
     },
     {
       "OrderMonth": "2011-02",
-      "Revenue": 522545.56
+      "GrossRevenue": 522545.56,
+      "RefundValue": 25519.15,
+      "NetRevenue": 497026.41
     },
     {
       "OrderMonth": "2011-03",
-      "Revenue": 716215.26
+      "GrossRevenue": 716215.26,
+      "RefundValue": 34201.28,
+      "NetRevenue": 682013.98
     },
     {
       "OrderMonth": "2011-04",
-      "Revenue": 536968.491
+      "GrossRevenue": 536968.491,
+      "RefundValue": 44600.65,
+      "NetRevenue": 492367.84
     },
     {
       "OrderMonth": "2011-05",
-      "Revenue": 769296.61
+      "GrossRevenue": 769296.61,
+      "RefundValue": 47202.51,
+      "NetRevenue": 722094.1
     },
     {
       "OrderMonth": "2011-06",
-      "Revenue": 760547.01
+      "GrossRevenue": 760547.01,
+      "RefundValue": 70569.78,
+      "NetRevenue": 689977.23
     },
     {
       "OrderMonth": "2011-07",
-      "Revenue": 718076.121
+      "GrossRevenue": 718076.121,
+      "RefundValue": 37919.13,
+      "NetRevenue": 680156.99
     },
     {
       "OrderMonth": "2011-08",
-      "Revenue": 757841.38
+      "GrossRevenue": 757841.38,
+      "RefundValue": 54330.8,
+      "NetRevenue": 703510.58
     },
     {
       "OrderMonth": "2011-09",
-      "Revenue": 1056435.192
+      "GrossRevenue": 1056435.192,
+      "RefundValue": 38838.51,
+      "NetRevenue": 1017596.68
     },
     {
       "OrderMonth": "2011-10",
-      "Revenue": 1151263.73
+      "GrossRevenue": 1151263.73,
+      "RefundValue": 81895.5,
+      "NetRevenue": 1069368.23
     },
     {
       "OrderMonth": "2011-11",
-      "Revenue": 1503866.78
+      "GrossRevenue": 1503866.78,
+      "RefundValue": 47720.98,
+      "NetRevenue": 1456145.8
     },
     {
       "OrderMonth": "2011-12",
-      "Revenue": 637790.33
+      "GrossRevenue": 637790.33,
+      "RefundValue": 205089.27,
+      "NetRevenue": 432701.06
     }
   ],
   "productQuantity": [

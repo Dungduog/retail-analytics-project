@@ -110,6 +110,10 @@ Mở [`web/index.html`](web/index.html) bằng trình duyệt. Khi nộp bài, g
 cả thư mục `web/` để trang đọc được CSS, JavaScript và ảnh. Có thể mở trực
 tiếp từ ổ đĩa khi không có Internet.
 
+Dashboard hiển thị doanh thu ròng sau hoàn hủy. Các khoản hoàn hủy được ghi
+nhận vào tháng phát sinh hóa đơn hủy. Xếp hạng theo doanh thu và tỷ trọng UK
+vẫn dùng doanh thu gross.
+
 Để tạo lại `web/data.js` và sao chép ảnh từ các báo cáo đã có, chạy:
 
 ```bash
