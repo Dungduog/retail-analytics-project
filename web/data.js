@@ -21,7 +21,7 @@ window.RETAIL_DATA = {
     },
     {
       "OrderMonth": "2011-02",
-      "GrossRevenue": 522545.56,
+      "GrossRevenue": 522545.55999999994,
       "RefundValue": 25519.15,
       "NetRevenue": 497026.41
     },
@@ -51,13 +51,13 @@ window.RETAIL_DATA = {
     },
     {
       "OrderMonth": "2011-07",
-      "GrossRevenue": 718076.121,
+      "GrossRevenue": 718076.1209999999,
       "RefundValue": 37919.13,
       "NetRevenue": 680156.99
     },
     {
       "OrderMonth": "2011-08",
-      "GrossRevenue": 757841.38,
+      "GrossRevenue": 757841.3799999999,
       "RefundValue": 54330.8,
       "NetRevenue": 703510.58
     },
@@ -91,60 +91,70 @@ window.RETAIL_DATA = {
       "StockCode": "23843",
       "Quantity": 80995,
       "Revenue": "168469.6",
+      "IsNonProduct": "False",
       "Description": "PAPER CRAFT , LITTLE BIRDIE"
     },
     {
       "StockCode": "23166",
       "Quantity": 78033,
       "Revenue": "81700.92000000001",
+      "IsNonProduct": "False",
       "Description": "MEDIUM CERAMIC TOP STORAGE JAR"
     },
     {
       "StockCode": "22197",
       "Quantity": 56898,
       "Revenue": "51334.47",
+      "IsNonProduct": "False",
       "Description": "POPCORN HOLDER"
     },
     {
       "StockCode": "84077",
       "Quantity": 54951,
       "Revenue": "13814.009999999998",
+      "IsNonProduct": "False",
       "Description": "WORLD WAR 2 GLIDERS ASSTD DESIGNS"
     },
     {
       "StockCode": "85099B",
       "Quantity": 48371,
       "Revenue": "94159.81",
+      "IsNonProduct": "False",
       "Description": "JUMBO BAG RED RETROSPOT"
     },
     {
       "StockCode": "85123A",
       "Quantity": 37933,
       "Revenue": "106415.23",
+      "IsNonProduct": "False",
       "Description": "WHITE HANGING HEART T-LIGHT HOLDER"
     },
     {
       "StockCode": "21212",
       "Quantity": 36396,
       "Revenue": "21246.45",
+      "IsNonProduct": "False",
       "Description": "PACK OF 72 RETROSPOT CAKE CASES"
     },
     {
       "StockCode": "84879",
       "Quantity": 36362,
       "Revenue": "58927.62",
+      "IsNonProduct": "False",
       "Description": "ASSORTED COLOUR BIRD ORNAMENT"
     },
     {
       "StockCode": "23084",
       "Quantity": 30739,
       "Revenue": "66870.03",
+      "IsNonProduct": "False",
       "Description": "RABBIT NIGHT LIGHT"
     },
     {
       "StockCode": "22492",
       "Quantity": 26633,
       "Revenue": "16937.82",
+      "IsNonProduct": "False",
       "Description": "MINI PAINT SET VINTAGE"
     }
   ],
@@ -153,60 +163,70 @@ window.RETAIL_DATA = {
       "StockCode": "DOT",
       "Quantity": "706",
       "Revenue": 206248.77,
+      "IsNonProduct": "True",
       "Description": "DOTCOM POSTAGE"
     },
     {
       "StockCode": "22423",
       "Quantity": "13851",
       "Revenue": 174156.54,
+      "IsNonProduct": "False",
       "Description": "REGENCY CAKESTAND 3 TIER"
     },
     {
       "StockCode": "23843",
       "Quantity": "80995",
       "Revenue": 168469.6,
+      "IsNonProduct": "False",
       "Description": "PAPER CRAFT , LITTLE BIRDIE"
     },
     {
       "StockCode": "85123A",
       "Quantity": "37933",
       "Revenue": 106415.23,
+      "IsNonProduct": "False",
       "Description": "WHITE HANGING HEART T-LIGHT HOLDER"
     },
     {
       "StockCode": "47566",
       "Quantity": "18283",
       "Revenue": 99445.23,
+      "IsNonProduct": "False",
       "Description": "PARTY BUNTING"
     },
     {
       "StockCode": "85099B",
       "Quantity": "48371",
       "Revenue": 94159.81,
+      "IsNonProduct": "False",
       "Description": "JUMBO BAG RED RETROSPOT"
     },
     {
       "StockCode": "23166",
       "Quantity": "78033",
       "Revenue": 81700.92000000001,
+      "IsNonProduct": "False",
       "Description": "MEDIUM CERAMIC TOP STORAGE JAR"
     },
     {
       "StockCode": "POST",
       "Quantity": "3150",
       "Revenue": 78101.88,
+      "IsNonProduct": "True",
       "Description": "POSTAGE"
     },
     {
       "StockCode": "M",
       "Quantity": "6985",
       "Revenue": 77752.82,
+      "IsNonProduct": "True",
       "Description": "Manual"
     },
     {
       "StockCode": "23084",
       "Quantity": "30739",
       "Revenue": 66870.03,
+      "IsNonProduct": "False",
       "Description": "RABBIT NIGHT LIGHT"
     }
   ],
@@ -245,7 +265,7 @@ window.RETAIL_DATA = {
     },
     {
       "Country": "Belgium",
-      "Revenue": 41196.340000000004
+      "Revenue": 41196.34
     },
     {
       "Country": "Sweden",
@@ -253,7 +273,7 @@ window.RETAIL_DATA = {
     },
     {
       "Country": "Japan",
-      "Revenue": 37416.37
+      "Revenue": 37416.369999999995
     },
     {
       "Country": "Norway",
@@ -361,7 +381,7 @@ window.RETAIL_DATA = {
     },
     {
       "Country": "Saudi Arabia",
-      "Revenue": 145.92000000000002
+      "Revenue": 145.92
     }
   ],
   "countryQuantity": [
@@ -451,6 +471,7 @@ window.RETAIL_DATA = {
       "CancelledRows": "244",
       "CancelledQuantity": "4066",
       "CancelledValue": "146784.46",
+      "IsNonProduct": "True",
       "Description": "Manual"
     },
     {
@@ -459,6 +480,7 @@ window.RETAIL_DATA = {
       "CancelledRows": "180",
       "CancelledQuantity": "855",
       "CancelledValue": "9697.05",
+      "IsNonProduct": "False",
       "Description": "REGENCY CAKESTAND 3 TIER"
     },
     {
@@ -467,6 +489,7 @@ window.RETAIL_DATA = {
       "CancelledRows": "126",
       "CancelledQuantity": "147",
       "CancelledValue": "11871.24",
+      "IsNonProduct": "True",
       "Description": "POSTAGE"
     }
   ],
@@ -477,6 +500,7 @@ window.RETAIL_DATA = {
       "CancelledRows": "32",
       "CancelledQuantity": "32",
       "CancelledValue": 235281.59,
+      "IsNonProduct": "True",
       "Description": "AMAZON FEE"
     },
     {
@@ -485,6 +509,7 @@ window.RETAIL_DATA = {
       "CancelledRows": "1",
       "CancelledQuantity": "80995",
       "CancelledValue": 168469.6,
+      "IsNonProduct": "False",
       "Description": "PAPER CRAFT , LITTLE BIRDIE"
     },
     {
@@ -493,6 +518,7 @@ window.RETAIL_DATA = {
       "CancelledRows": "244",
       "CancelledQuantity": "4066",
       "CancelledValue": 146784.46,
+      "IsNonProduct": "True",
       "Description": "Manual"
     }
   ]
