@@ -1,68 +1,61 @@
-# Báo cáo Insight — Phân tích khách hàng và sản phẩm trong bán lẻ online
+# Báo cáo insight — Phân tích bán lẻ online
 
-**Môn học:** PSD301M | **Nhóm:** Trí Dũng, Tuấn Triển  
-**Dữ liệu:** UCI Online Retail (541,909 dòng, 12/2010–12/2011)
+**Môn học:** PSD301M · **Nhóm:** Trí Dũng, Tuấn Triển
 
----
+**Mục tiêu:** Xác định khách hàng và sản phẩm tạo doanh thu cao, phân tích giao dịch bất thường và hoàn hủy trên UCI Online Retail.
 
-## 1. Mục tiêu và câu hỏi nghiên cứu
+Books to Scrape là bài thực hành requests/BeautifulSoup riêng, không dùng để kết luận về giao dịch UCI.
 
-Phân tích giao dịch bán lẻ online nhằm trả lời: *Nhóm khách hàng và sản phẩm nào tạo doanh thu cao, và các đơn hàng có xuất hiện dấu hiệu bất thường hoặc hủy giao dịch hay không?*
+Các kết quả dưới đây được tính từ `cleaned_retail.csv` và `customer_segments.csv`. Doanh thu sản phẩm, tháng và quốc gia chỉ dùng dòng bán (gross). Xếp hạng mã hàng giữ phí và dịch vụ; xếp hạng hàng hóa loại các mã có cờ IsNonProduct.
 
-Tám câu hỏi phụ: doanh thu theo thời gian, sản phẩm bán nhiều nhất, sản phẩm doanh thu cao nhất, phân khúc giá, khách chi tiêu cao & mua thường xuyên, quốc gia đóng góp nhiều nhất, khách lâu không quay lại, sản phẩm hay bị hủy.
+## 1. Doanh thu theo thời gian
 
----
+Tháng có gross revenue cao nhất là `2011-11` với £1,503,866.78. Tháng 2011-12 chỉ có dữ liệu đến 09/12/2011; không so trực tiếp với tháng trọn vẹn.
+Tổng gross £10,642,110.80, hoàn hủy £893,979.73, net £9,748,131.07. Dashboard ghi hoàn hủy vào tháng phát sinh hóa đơn hủy.
 
-## 2. Nguồn dữ liệu
+## 2. Sản phẩm bán nhiều nhất
 
-**UCI Online Retail** — dữ liệu giao dịch thật của một doanh nghiệp bán lẻ online UK, 541,909 dòng × 8 thuộc tính. Đủ dữ liệu để thực hiện phân tích RFM, doanh thu và phát hiện hủy đơn.
+`PAPER CRAFT , LITTLE BIRDIE` (`23843`) có tổng lượng bán gross cao nhất trong hàng hóa: 80,995 đơn vị. Lượng bán ban đầu vẫn được tính vào gross dù có hoàn hủy về sau.
 
-**Books to Scrape** — 1,000 sách thu thập bằng `requests` + `BeautifulSoup` (thực hành kỹ thuật web scraping theo Option B của rubric). Dữ liệu này không dùng trong phân tích chính.
+## 3. Sản phẩm tạo doanh thu cao nhất
 
----
+`REGENCY CAKESTAND 3 TIER` (`22423`) đứng đầu trong hàng hóa theo gross revenue: £174,156.54. Nếu xét toàn bộ mã hàng, mã đứng đầu là `DOTCOM POSTAGE` với £206,248.77.
 
-## 3. Quy trình phân tích
+## 4. Phân khúc giá có lượng mua cao nhất
 
-- **Data Profiling:** 1,454 dòng thiếu Description; 135,080 (24.9%) thiếu CustomerID; 5,268 dòng trùng lặp; 10,624 Quantity âm.
-- **Data Cleaning:** loại trùng lặp (−5,268), loại UnitPrice ≤ 0 (−2,512), giữ đơn hủy để phân tích riêng → **534,129 dòng** sau cleaning. Thêm cột `IsCancelled`, `OrderMonth`, `Revenue`, `IsNonProduct`.
-- **Cấu trúc dữ liệu Python:** List (invoice_records), Dict (country_summary), Set (product_codes), Tuple (date_range).
-- **Lớp OOP:** `RetailDataProcessor` đóng gói toàn bộ pipeline load → clean → RFM.
-- **NumPy / IQR:** thống kê mô tả và phát hiện outlier trên Revenue, Quantity, UnitPrice.
-- **RFM Customer Segmentation:** Recency, Frequency, Monetary (đã trừ giá trị hủy). Điểm 1–4 theo percentile, gán 5 phân khúc.
-- **EDA:** 8 câu hỏi nghiên cứu, 9+ bảng kết quả, 10+ biểu đồ.
-- **Validation:** 15 phép kiểm tra tự động — tất cả 0 lỗi.
+Phân khúc `Low` có Quantity cao nhất: 2,887,471. Các phân khúc được xác định bằng tứ phân vị UnitPrice: Q1=1.25, Median=2.08, Q3=4.13.
+Bảng này mô tả đơn giá của các dòng bán, bao gồm mã phí nếu có.
 
----
+## 5. Khách hàng chi tiêu nhiều và mua thường xuyên
 
-## 4. Kết quả chính
+Trong nhóm Champions, CustomerID `14646` có Monetary cao nhất: 279,489.02, Frequency=73 hóa đơn bán. Champions chiếm 75.2% tổng Monetary của khách trong RFM.
 
-| Câu hỏi | Insight | Con số |
-|---|---|---|
-| Doanh thu theo thời gian | Đỉnh tháng 11/2011; mùa cuối năm (tháng 9–11) chiếm ~34.9% gross revenue | 1,503,867 GBP |
-| Sản phẩm bán nhiều nhất | REGENCY CAKESTAND 3 TIER dẫn đầu khi gộp đúng theo StockCode; hai đơn hủy bất thường (80,995 và 74,215 chiếc) làm sai lệch xếp hạng thô | — |
-| Sản phẩm doanh thu cao nhất | REGENCY CAKESTAND 3 TIER (174,157 GBP) sau khi loại mã phí | 174,157 GBP |
-| Phân khúc giá | Low (≤ 1.25 GBP) có lượng mua nhiều nhất; Premium (> 4.13 GBP) đóng góp doanh thu cao nhất | 3.8M GBP |
-| Khách hàng giá trị cao | Champions (29.8% khách) tạo ~75.2% tổng Monetary RFM | 1,291 khách |
-| Quốc gia dẫn đầu | United Kingdom chiếm 84.6% gross revenue | 9,001,744 GBP |
-| Khách lâu không quay lại | 1,692 khách Lost + At Risk; Recency lớn nhất 374 ngày | 862 At Risk |
-| Sản phẩm hay bị hủy | REGENCY CAKESTAND 3 TIER: 180 hóa đơn hủy; AMAZON FEE: giá trị hủy lớn nhất (235,281 GBP) | — |
+## 6. Quốc gia đóng góp doanh thu nhiều nhất
 
----
+`United Kingdom` có gross revenue cao nhất: £9,001,744.09 (84.6% gross).
 
-## 5. Đề xuất hành động
+## 7. Khách hàng lâu không quay lại
 
-- **Champions:** duy trì loyalty program và ưu đãi cá nhân hóa — nhóm này tạo ~75% Monetary RFM.
-- **At Risk (862 khách):** triển khai win-back campaign (email/voucher) trước khi Recency vượt 120 ngày.
-- **Mùa vụ:** chuẩn bị tồn kho và marketing từ tháng 8–9 cho giai đoạn cao điểm tháng 9–11.
-- **REGENCY CAKESTAND 3 TIER:** điều tra nguyên nhân 180 hóa đơn hủy dù thuộc top doanh thu.
+Lost và At Risk có 2,180 khách. CustomerID `18074` có Recency lớn nhất trong hai nhóm: 374 ngày. Đây là phân nhóm theo quy tắc RFM, không phải dự báo rời bỏ.
 
----
+## 8. Sản phẩm thường xuất hiện trong đơn bị hủy
 
-## 6. Giới hạn của phân tích
+`Manual` (`M`) xuất hiện trong 223 hóa đơn hủy, cao nhất trong tất cả mã. Trong hàng hóa, `REGENCY CAKESTAND 3 TIER` xuất hiện trong 180 hóa đơn hủy. `AMAZON FEE` dẫn đầu theo giá trị hủy: £235,281.59. Các số đếm trên không phải tỷ lệ đơn bán bị hủy.
 
-1. **Doanh thu gross** — phân tích sản phẩm/tháng/quốc gia chưa trừ giá trị hủy (~8.4%).
-2. **~25% dòng thiếu CustomerID** — RFM chỉ bao phủ 4,338 khách xác định được.
-3. **Dữ liệu 1 năm** — chưa đủ để kết luận chắc chắn về tính mùa vụ.
-4. **Tháng 12/2011 chưa đầy đủ** (đến ngày 09/12) — không so sánh thẳng với các tháng khác.
-5. **Mã phí lẫn trong dữ liệu sản phẩm** — đã gắn cờ `IsNonProduct`, loại khỏi các phân tích sản phẩm.
-6. **UK chiếm 84.6%** — kết luận chủ yếu phản ánh thị trường Anh.
+## Tương quan RFM và cohort
+
+- Pearson Frequency–Monetary trên R/F/M gốc: 0.576. Tương quan không xác định nhân quả. Scatter log1p không vẽ 8 khách Monetary âm; họ vẫn nằm trong bảng và ma trận tương quan.
+- Có 1,728 khách không mua ở M+1 nhưng mua từ M+2 trở đi trong kỳ quan sát. Vì vậy, vắng mặt ở M+1 không đồng nghĩa không bao giờ quay lại.
+- Cohort dựa trên tháng mua đầu quan sát được. CSV lưu tỷ lệ 0–1; 0 là kỳ đã quan sát nhưng không có lượt mua lại, ô trống là ngoài kỳ quan sát. Tháng 2011-12 chỉ có dữ liệu đến 09/12/2011; không so trực tiếp với tháng trọn vẹn.
+
+## Phạm vi
+
+Dòng thiếu CustomerID vẫn được tính vào tổng doanh thu, nhưng không dùng cho RFM và cohort. Monetary giữ giá trị thực sau hoàn hủy, kể cả âm. Dữ liệu chỉ bao phủ khoảng một năm và không có chi phí, dòng tiền hay lý do hoàn trả. Outlier được gắn cờ để xem xét, không tự động loại.
+
+## Đề xuất cần kiểm chứng
+
+- **Chăm sóc Champions:** Tỷ trọng Monetary cao trong RFM gợi ý một nhóm ưu tiên thử chương trình chăm sóc. Đo mua lại và giá trị sau hoàn hủy, không suy ra lợi nhuận hay khả năng cấp tín dụng.
+- **Khách chưa mua lại:** Có thể thử nhắc mua lần hai hoặc win-back. Mốc 120 ngày là đề xuất thử nghiệm, không phải ngưỡng chuyển sang Lost.
+- **Hoàn hủy hàng hóa:** `REGENCY CAKESTAND 3 TIER` có nhiều hóa đơn hủy; chưa có mẫu số và lý do hủy để kết luận rủi ro hay nguyên nhân. Cần bổ sung dữ liệu liên kết giao dịch và lý do hoàn trả trước khi đề xuất thay đổi vận hành.
+
+Nguồn đối chiếu: các bảng trong `reports/tables/`, dữ liệu RFM và notebook chạy chung pipeline. Báo cáo này được tạo lại bằng `python main.py`.

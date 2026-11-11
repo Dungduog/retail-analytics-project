@@ -179,9 +179,8 @@ class RetailDataProcessor:
         rfm["CancelledValue"] = rfm["CancelledValue"].fillna(0)
         rfm["Monetary"] = rfm["GrossMonetary"] - rfm["CancelledValue"]
         rfm["HasNegativeMonetary"] = rfm["Monetary"] < 0
-        # Kẹp về 0 trước khi tính percentile để tránh M_Score sai lệch
-        rfm["Monetary"] = rfm["Monetary"].clip(lower=0)
-
+        # Giữ Monetary thực, kể cả âm; percentile xếp hạng được giá trị âm.
+
         r_percentile = rfm["Recency"].rank(method="average", pct=True)
         rfm["R_Score"] = (5 - np.ceil(r_percentile * 4)).astype(int)
 

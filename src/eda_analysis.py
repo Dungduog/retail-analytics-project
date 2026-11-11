@@ -10,9 +10,11 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
-import seaborn as sns
+
+from .utils import load_cleaned
 
 
 def _save_table(table: pd.DataFrame, output_dir: Path, name: str) -> None:
@@ -22,6 +24,25 @@ def _save_table(table: pd.DataFrame, output_dir: Path, name: str) -> None:
 
 def _currency(value: float) -> str:
     return f"{value:,.2f}"
+
+
+def _cohort_retention(sales: pd.DataFrame, last_month: pd.Period):
+    """Một khách được đếm một lần mỗi tháng; ô ngoài kỳ quan sát để trống."""
+    visits = sales.loc[sales["CustomerID"].notna(), ["CustomerID", "InvoiceDate"]].copy()
+    visits["PurchaseMonth"] = visits.pop("InvoiceDate").dt.to_period("M")
+    visits = visits.drop_duplicates()
+    visits["CohortMonth"] = visits.groupby("CustomerID")["PurchaseMonth"].transform("min")
+    visits["CohortIndex"] = (
+        visits["PurchaseMonth"].astype("int64") - visits["CohortMonth"].astype("int64")
+    )
+    counts = visits.groupby(["CohortMonth", "CohortIndex"])["CustomerID"].nunique().unstack()
+    months = range(last_month.ordinal - counts.index.min().ordinal + 1)
+    counts = counts.reindex(columns=months)
+    observed = last_month.ordinal - counts.index.asi8[:, None] >= np.asarray(months)[None, :]
+    rates = counts.fillna(0).where(observed).div(counts[0], axis=0)
+    returned_m1 = set(visits.loc[visits["CohortIndex"].eq(1), "CustomerID"])
+    returned_later = set(visits.loc[visits["CohortIndex"].gt(1), "CustomerID"])
+    return rates, len(returned_later - returned_m1)
 
 
 def run_eda(
@@ -38,12 +59,7 @@ def run_eda(
     figures_path = Path(figures_dir)
     report_path = Path(report_file)
 
-    data = pd.read_csv(
-        cleaned_path,
-        parse_dates=["InvoiceDate"],
-        true_values=["True"],
-        false_values=["False"],
-    )
+    data = load_cleaned(cleaned_path)
     customers = pd.read_csv(customer_path)
     cancelled_mask = data["IsCancelled"].astype(bool)
     sales = data[~cancelled_mask].copy()
@@ -70,12 +86,20 @@ def run_eda(
     )
     prod_agg = (
         product_sales.groupby("StockCode", as_index=False)
-        .agg(Quantity=("Quantity", "sum"), Revenue=("Revenue", "sum"))
+        .agg(
+            Quantity=("Quantity", "sum"),
+            Revenue=("Revenue", "sum"),
+            IsNonProduct=("IsNonProduct", "first"),
+        )
     )
     prod_agg["Description"] = prod_agg["StockCode"].map(product_name)
 
     top_products_quantity = prod_agg.sort_values("Quantity", ascending=False).head(20)
     top_products_revenue  = prod_agg.sort_values("Revenue",  ascending=False).head(20)
+    # Dashboard giữ toàn bộ mã hàng; góc nhìn hàng hóa loại mã phí/dịch vụ.
+    goods = prod_agg.loc[~prod_agg["IsNonProduct"]]
+    top_goods_quantity = goods.nlargest(20, "Quantity")
+    top_goods_revenue = goods.nlargest(20, "Revenue")
     _save_table(top_products_quantity, tables_path, "top_products_quantity.csv")
     _save_table(top_products_revenue, tables_path, "top_products_revenue.csv")
 
@@ -149,6 +173,7 @@ def run_eda(
             CancelledRows=("InvoiceNo", "size"),
             CancelledQuantity=("Quantity", lambda values: values.abs().sum()),
             CancelledValue=("Revenue", lambda values: values.abs().sum()),
+            IsNonProduct=("IsNonProduct", "first"),
         )
     )
     cancelled_products_all["Description"] = cancelled_products_all["StockCode"].map(cancelled_product_name)
@@ -186,6 +211,13 @@ def run_eda(
     segment_counts = (
         customers["Segment"].value_counts().reindex(segment_order, fill_value=0)
     )
+    segment_stats = customers.groupby("Segment").agg(
+        Customers=("CustomerID", "size"),
+        Monetary=("Monetary", "sum"),
+        MedianRecency=("Recency", "median"),
+        MedianFrequency=("Frequency", "median"),
+    ).reindex(segment_order)
+    segment_stats["MonetaryShare"] = segment_stats["Monetary"] / customers["Monetary"].sum()
     segment_percentages = segment_counts / segment_counts.sum() * 100
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -235,10 +267,10 @@ def run_eda(
     quantity_chart = top_products_quantity.head(10).sort_values("Quantity")
     revenue_chart = top_products_revenue.head(10).sort_values("Revenue")
     axes[0].barh(quantity_chart["Description"], quantity_chart["Quantity"], color="#3A7D44")
-    axes[0].set_title("Top Products by Quantity")
+    axes[0].set_title("Top Stock Codes by Gross Quantity")
     axes[0].set_xlabel("Quantity")
     axes[1].barh(revenue_chart["Description"], revenue_chart["Revenue"], color="#C1666B")
-    axes[1].set_title("Top Products by Revenue")
+    axes[1].set_title("Top Stock Codes by Gross Revenue")
     axes[1].set_xlabel("Revenue")
     fig.tight_layout()
     fig.savefig(figures_path / "top_products.png", dpi=160)
@@ -328,12 +360,12 @@ def run_eda(
     fig.savefig(figures_path / "cancelled_products.png", dpi=160)
     plt.close(fig)
 
-    # Heatmap tương quan R/F/M (log-scale vì phân phối lệch phải)
+    # Pearson trên R/F/M gốc; biến đổi log chỉ dành cho scatter.
     rfm_cols = ["Recency", "Frequency", "Monetary"]
-    rfm_log = np.log1p(customers[rfm_cols].clip(lower=0))
-    corr = rfm_log.corr()
+    corr = customers[rfm_cols].corr(method="pearson")
     fig, ax = plt.subplots(figsize=(6, 5))
     im = ax.imshow(corr.values, cmap="coolwarm", vmin=-1, vmax=1)
+    ax.grid(False)
     fig.colorbar(im, ax=ax)
     ax.set_xticks(range(len(rfm_cols)))
     ax.set_yticks(range(len(rfm_cols)))
@@ -343,77 +375,85 @@ def run_eda(
         for j in range(len(rfm_cols)):
             ax.text(j, i, f"{corr.iloc[i, j]:.2f}", ha="center", va="center", fontsize=11,
                     color="white" if abs(corr.iloc[i, j]) > 0.5 else "black")
-    ax.set_title("RFM Correlation Heatmap (log-scale)")
+    ax.set_title("RFM Pearson Correlation (Raw Values)")
     fig.tight_layout()
     fig.savefig(figures_path / "rfm_correlation_heatmap.png", dpi=160)
     plt.close(fig)
 
-    # Scatter Frequency vs Monetary (log-log), tô màu theo Segment
+    # Giữ Monetary âm trong bảng RFM, loại khỏi scatter log1p và chú thích.
     seg_palette = {
         "Champions": "#2A9D8F", "Loyal Customers": "#457B9D",
         "Regular Customers": "#A8DADC", "At Risk": "#E76F51", "Lost": "#6C757D"
     }
     fig, ax = plt.subplots(figsize=(9, 6))
-    for seg, grp in customers.groupby("Segment"):
+    scatter_customers = customers.loc[customers["Monetary"].ge(0)]
+    excluded_from_scatter = len(customers) - len(scatter_customers)
+    for seg, grp in scatter_customers.groupby("Segment"):
         ax.scatter(
             np.log1p(grp["Frequency"]),
-            np.log1p(grp["Monetary"].clip(lower=0)),
+            np.log1p(grp["Monetary"]),
             label=seg, alpha=0.5, s=20,
             color=seg_palette.get(seg, "#999999")
         )
     ax.set_xlabel("log1p(Frequency)")
     ax.set_ylabel("log1p(Monetary)")
-    ax.set_title("Frequency vs Monetary by Customer Segment (log scale)")
+    ax.set_title("Frequency vs Monetary by Customer Segment (log1p)")
     ax.legend(fontsize=8, markerscale=2)
-    fig.tight_layout()
+    fig.text(0.5, 0.025, f"{excluded_from_scatter:,} negative-Monetary customers omitted from this plot only.",
+             ha="center", fontsize=9)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
     fig.savefig(figures_path / "rfm_scatter_freq_monetary.png", dpi=160)
     plt.close(fig)
 
-    # Cohort retention heatmap
-    cust_sales = sales.dropna(subset=["CustomerID"]).copy()
-    cust_sales["CustomerID"] = cust_sales["CustomerID"].astype(int)
-    cust_sales["InvoiceMonth"] = cust_sales["InvoiceDate"].dt.to_period("M")
-    cohort_month = (
-        cust_sales.groupby("CustomerID")["InvoiceMonth"]
-        .min()
-        .rename("CohortMonth")
-    )
-    cust_sales = cust_sales.join(cohort_month, on="CustomerID")
-    cust_sales["CohortIndex"] = (
-        (cust_sales["InvoiceMonth"] - cust_sales["CohortMonth"])
-        .apply(lambda x: x.n)
-    )
-    cohort_data = (
-        cust_sales.groupby(["CohortMonth", "CohortIndex"])["CustomerID"]
-        .nunique()
-        .reset_index()
-    )
-    cohort_pivot = cohort_data.pivot_table(
-        index="CohortMonth", columns="CohortIndex", values="CustomerID"
-    )
-    cohort_size = cohort_pivot.iloc[:, 0]
-    retention = cohort_pivot.divide(cohort_size, axis=0).round(3)
+    # Cohort: CSV lưu 0–1; heatmap phân biệt 0%, chưa quan sát và tháng lẻ.
+    observation_end = data["InvoiceDate"].max()
+    last_month = observation_end.to_period("M")
+    partial_month = observation_end.day < observation_end.days_in_month
+    retention, skipped_m1_returned = _cohort_retention(sales, last_month)
 
     fig, ax = plt.subplots(figsize=(14, 8))
-    im = ax.imshow(retention.values, cmap="YlOrRd_r", vmin=0, vmax=1, aspect="auto")
-    fig.colorbar(im, ax=ax, label="Retention Rate")
+    cmap = plt.get_cmap("YlOrRd_r").with_extremes(bad="#CBD5E1")
+    im = ax.imshow(retention.values, cmap=cmap, vmin=0, vmax=1, aspect="auto")
+    ax.grid(False)
+    fig.colorbar(im, ax=ax, label="Retention", format=lambda value, _: f"{value:.0%}")
     ax.set_xticks(range(retention.shape[1]))
     ax.set_xticklabels([f"M+{i}" for i in retention.columns], fontsize=8)
     ax.set_yticks(range(retention.shape[0]))
     ax.set_yticklabels([str(m) for m in retention.index], fontsize=8)
-    for i in range(retention.shape[0]):
-        for j in range(retention.shape[1]):
+    for i, cohort in enumerate(retention.index):
+        for j, offset in enumerate(retention.columns):
             val = retention.iloc[i, j]
             if not np.isnan(val):
-                ax.text(j, i, f"{val:.0%}", ha="center", va="center",
+                partial = partial_month and cohort + offset == last_month
+                if partial:
+                    ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False,
+                                           edgecolor="#2563EB", linewidth=1.5))
+                label = f"{val:.0%}" + ("*" if partial else "")
+                ax.text(j, i, label, ha="center", va="center",
                         fontsize=7, color="black" if val > 0.3 else "white")
     ax.set_title("Customer Cohort Retention by Month")
     ax.set_xlabel("Months since first purchase")
-    ax.set_ylabel("Cohort (first purchase month)")
-    fig.tight_layout()
+    ax.set_ylabel("Cohort (first observed purchase month)")
+    note = "Grey: unobserved; 0%: observed without a purchase."
+    if partial_month:
+        note += f"  * Partial month through {observation_end:%Y-%m-%d}."
+    fig.text(0.5, 0.025, note, ha="center", fontsize=9)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
     fig.savefig(figures_path / "cohort_retention_heatmap.png", dpi=160)
     plt.close(fig)
     _save_table(retention.reset_index(), tables_path, "cohort_retention.csv")
+
+    # Biểu đồ phân phối đã có trong notebook, nay xuất từ cùng pipeline.
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    for ax, column, color in zip(axes, ["Revenue", "Quantity", "UnitPrice"],
+                                 ["#2F6690", "#3A7D44", "#C1666B"]):
+        ax.hist(np.log1p(sales[column]), bins=50, color=color)
+        ax.set_xlabel(f"log1p({column})")
+        ax.set_ylabel("Sales lines")
+    fig.suptitle("Distributions of Sales Line Values")
+    fig.tight_layout()
+    fig.savefig(figures_path / "distributions_log.png", dpi=160)
+    plt.close(fig)
 
     # UK vs Non-UK theo thang
     fig, ax = plt.subplots(figsize=(12, 5))
@@ -431,83 +471,157 @@ def run_eda(
     plt.close(fig)
 
     peak_month = monthly_revenue.loc[monthly_revenue["Revenue"].idxmax()]
-    top_quantity = top_products_quantity.iloc[0]
-    top_revenue = top_products_revenue.iloc[0]
+    top_quantity = top_goods_quantity.iloc[0]
+    top_revenue = top_goods_revenue.iloc[0]
+    top_code_revenue = top_products_revenue.iloc[0]
     leading_segment = price_segments.loc[price_segments["Quantity"].idxmax()]
     top_customer = top_customers.iloc[0]
     top_country = country_revenue.iloc[0]
     longest_inactive = inactive_customers.iloc[0]
     most_cancelled = cancelled_products.iloc[0]
+    most_cancelled_goods = cancelled_products_all.loc[~cancelled_products_all["IsNonProduct"]].iloc[0]
+    biggest_refund = cancelled_products_by_value.iloc[0]
+    inactive_count = customers["Segment"].isin(["Lost", "At Risk"]).sum()
+    gross = sales["Revenue"].sum()
+    refunds = -cancellations["Revenue"].sum()
+    net = data["Revenue"].sum()
+    champion_share = segment_stats.loc["Champions", "MonetaryShare"]
+    partial_note = (
+        f"Tháng {last_month} chỉ có dữ liệu đến {observation_end:%d/%m/%Y}; "
+        "không so trực tiếp với tháng trọn vẹn."
+        if partial_month else f"Dữ liệu quan sát đến {observation_end:%d/%m/%Y}."
+    )
 
     report_lines = [
-        "# EDA Results",
+        "# Kết quả EDA",
         "",
         "Các kết quả dưới đây được tính từ `cleaned_retail.csv` và "
         "`customer_segments.csv`. Doanh thu sản phẩm, tháng và quốc gia chỉ dùng "
-        "normal sales; cancellation được phân tích riêng.",
+        "dòng bán (gross). Xếp hạng mã hàng giữ phí và dịch vụ; xếp hạng hàng hóa "
+        "loại các mã có cờ IsNonProduct.",
         "",
         "## 1. Doanh thu theo thời gian",
         "",
         f"Tháng có gross revenue cao nhất là `{peak_month['OrderMonth']}` với "
-        f"{_currency(peak_month['Revenue'])}.",
+        f"£{_currency(peak_month['Revenue'])}. {partial_note}",
+        f"Tổng gross £{_currency(gross)}, hoàn hủy £{_currency(refunds)}, "
+        f"net £{_currency(net)}. Dashboard ghi hoàn hủy vào tháng phát sinh hóa đơn hủy.",
         "",
         "## 2. Sản phẩm bán nhiều nhất",
         "",
         f"`{top_quantity['Description']}` (`{top_quantity['StockCode']}`) có tổng "
-        f"Quantity cao nhất: {top_quantity['Quantity']:,.0f}.",
+        f"lượng bán gross cao nhất trong hàng hóa: {top_quantity['Quantity']:,.0f} đơn vị. "
+        "Lượng bán ban đầu vẫn được tính vào gross dù có hoàn hủy về sau.",
         "",
         "## 3. Sản phẩm tạo doanh thu cao nhất",
         "",
         f"`{top_revenue['Description']}` (`{top_revenue['StockCode']}`) đứng đầu "
-        f"theo Revenue: {_currency(top_revenue['Revenue'])}. Kết quả giữ nguyên "
-        "các mã phí/dịch vụ có trong dataset; chưa tự động loại chúng.",
+        f"trong hàng hóa theo gross revenue: £{_currency(top_revenue['Revenue'])}. "
+        f"Nếu xét toàn bộ mã hàng, mã đứng đầu là `{top_code_revenue['Description']}` "
+        f"với £{_currency(top_code_revenue['Revenue'])}.",
         "",
         "## 4. Phân khúc giá có lượng mua cao nhất",
         "",
         f"Phân khúc `{leading_segment['PriceSegment']}` có Quantity cao nhất: "
         f"{leading_segment['Quantity']:,.0f}. Các phân khúc được xác định bằng "
         f"tứ phân vị UnitPrice: Q1={q1:.2f}, Median={median:.2f}, Q3={q3:.2f}.",
+        "Bảng này mô tả đơn giá của các dòng bán, bao gồm mã phí nếu có.",
         "",
         "## 5. Khách hàng chi tiêu nhiều và mua thường xuyên",
         "",
         f"Trong nhóm Champions, CustomerID `{top_customer['CustomerID']:.0f}` có "
         f"Monetary cao nhất: {_currency(top_customer['Monetary'])}, Frequency="
-        f"{top_customer['Frequency']:,.0f}.",
+        f"{top_customer['Frequency']:,.0f} hóa đơn bán. "
+        f"Champions chiếm {champion_share:.1%} tổng Monetary của khách trong RFM.",
         "",
         "## 6. Quốc gia đóng góp doanh thu nhiều nhất",
         "",
         f"`{top_country['Country']}` có gross revenue cao nhất: "
-        f"{_currency(top_country['Revenue'])}.",
+        f"£{_currency(top_country['Revenue'])} ({top_country['Revenue'] / gross:.1%} gross).",
         "",
         "## 7. Khách hàng lâu không quay lại",
         "",
+        f"Lost và At Risk có {inactive_count:,} khách. "
         f"CustomerID `{longest_inactive['CustomerID']:.0f}` có Recency lớn nhất "
-        f"trong nhóm Lost/At Risk: {longest_inactive['Recency']:,.0f} ngày.",
+        f"trong hai nhóm: {longest_inactive['Recency']:,.0f} ngày. "
+        "Đây là phân nhóm theo quy tắc RFM, không phải dự báo rời bỏ.",
         "",
         "## 8. Sản phẩm thường xuất hiện trong đơn bị hủy",
         "",
         f"`{most_cancelled['Description']}` (`{most_cancelled['StockCode']}`) xuất "
-        f"hiện trong {most_cancelled['CancelledInvoiceCount']:,.0f} cancellation "
-        "invoices, cao nhất theo tiêu chí này.",
+        f"hiện trong {most_cancelled['CancelledInvoiceCount']:,.0f} "
+        f"hóa đơn hủy, cao nhất trong tất cả mã. Trong hàng hóa, "
+        f"`{most_cancelled_goods['Description']}` xuất hiện trong "
+        f"{most_cancelled_goods['CancelledInvoiceCount']:,.0f} hóa đơn hủy. "
+        f"`{biggest_refund['Description']}` dẫn đầu theo giá trị hủy: "
+        f"£{_currency(biggest_refund['CancelledValue'])}. "
+        "Các số đếm trên không phải tỷ lệ đơn bán bị hủy.",
+        "",
+        "## Tương quan RFM và cohort",
+        "",
+        f"- Pearson Frequency–Monetary trên R/F/M gốc: "
+        f"{corr.loc['Frequency', 'Monetary']:.3f}. Tương quan không xác định nhân quả. "
+        f"Scatter log1p không vẽ {excluded_from_scatter:,} khách Monetary âm; "
+        "họ vẫn nằm trong bảng và ma trận tương quan.",
+        f"- Có {skipped_m1_returned:,} khách không mua ở M+1 nhưng mua từ M+2 trở đi "
+        "trong kỳ quan sát. Vì vậy, vắng mặt ở M+1 không đồng nghĩa không bao giờ quay lại.",
+        "- Cohort dựa trên tháng mua đầu quan sát được. CSV lưu tỷ lệ 0–1; "
+        "0 là kỳ đã quan sát nhưng không có lượt mua lại, ô trống là ngoài kỳ quan sát. "
+        + partial_note,
         "",
         "## Phạm vi",
         "",
-        "EDA này không thêm dữ liệu ngoài dataset và không tự động xóa outlier, "
-        "mã phí hoặc nghiệp vụ nội bộ. Các file chi tiết nằm trong "
-        "`reports/tables/`; biểu đồ nằm trong `reports/figures/`.",
+        "Dòng thiếu CustomerID vẫn được tính vào tổng doanh thu, nhưng không dùng "
+        "cho RFM và cohort. Monetary giữ giá trị thực sau hoàn hủy, kể cả âm. "
+        "Dữ liệu chỉ bao phủ khoảng một năm và không có chi phí, dòng tiền hay "
+        "lý do hoàn trả. Outlier được gắn cờ để xem xét, không tự động loại.",
         "",
     ]
     report_path.write_text("\n".join(report_lines), encoding="utf-8")
+    insight_lines = [
+        "# Báo cáo insight — Phân tích bán lẻ online",
+        "",
+        "**Môn học:** PSD301M · **Nhóm:** Trí Dũng, Tuấn Triển",
+        "",
+        "**Mục tiêu:** Xác định khách hàng và sản phẩm tạo doanh thu cao, "
+        "phân tích giao dịch bất thường và hoàn hủy trên UCI Online Retail.",
+        "",
+        "Books to Scrape là bài thực hành requests/BeautifulSoup riêng, không dùng "
+        "để kết luận về giao dịch UCI.",
+        "",
+        *report_lines[2:],
+        "## Đề xuất cần kiểm chứng",
+        "",
+        "- **Chăm sóc Champions:** Tỷ trọng Monetary cao trong RFM gợi ý một nhóm "
+        "ưu tiên thử chương trình chăm sóc. Đo mua lại và giá trị sau hoàn hủy, "
+        "không suy ra lợi nhuận hay khả năng cấp tín dụng.",
+        "- **Khách chưa mua lại:** Có thể thử nhắc mua lần hai hoặc win-back. "
+        "Mốc 120 ngày là đề xuất thử nghiệm, không phải ngưỡng chuyển sang Lost.",
+        f"- **Hoàn hủy hàng hóa:** `{most_cancelled_goods['Description']}` có nhiều "
+        "hóa đơn hủy; chưa có mẫu số và lý do hủy để kết luận rủi ro hay nguyên nhân. "
+        "Cần bổ sung dữ liệu liên kết giao dịch và lý do hoàn trả trước khi đề xuất thay đổi vận hành.",
+        "",
+        "Nguồn đối chiếu: các bảng trong `reports/tables/`, dữ liệu RFM và "
+        "notebook chạy chung pipeline. Báo cáo này được tạo lại bằng `python main.py`.",
+        "",
+    ]
+    report_path.with_name("insight_report.md").write_text("\n".join(insight_lines), encoding="utf-8")
 
     return {
         "monthly_revenue": monthly_revenue,
         "top_products_quantity": top_products_quantity,
         "top_products_revenue": top_products_revenue,
+        "top_goods_quantity": top_goods_quantity,
+        "top_goods_revenue": top_goods_revenue,
         "price_segments": price_segments,
         "top_customers": top_customers,
         "country_revenue": country_revenue,
         "inactive_customers": inactive_customers,
         "cancelled_products": cancelled_products,
+        "cancelled_products_by_value": cancelled_products_by_value,
         "order_values": order_values,
         "uk_vs_nonuk": uk_vs_nonuk,
+        "segment_stats": segment_stats,
+        "rfm_correlation": corr,
+        "cohort_retention": retention,
     }

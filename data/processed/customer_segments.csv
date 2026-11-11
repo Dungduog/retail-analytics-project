@@ -982,7 +982,7 @@ CustomerID,Recency,Frequency,GrossMonetary,CancelledValue,Monetary,HasNegativeMo
 13668.0,3,21,6309.83,147.52,6162.3099999999995,False,4,4,4,Champions
 13669.0,51,2,218.55,0.0,218.55,False,2,2,1,Lost
 13670.0,75,1,349.7,0.0,349.7,False,2,1,2,Lost
-13672.0,301,2,186.39000000000001,257.85,0.0,True,1,2,1,Lost
+13672.0,301,2,186.39000000000001,257.85,-71.46000000000001,True,1,2,1,Lost
 13673.0,19,2,387.44,0.0,387.44,False,3,2,2,Regular Customers
 13675.0,151,2,486.82000000000005,0.0,486.82000000000005,False,1,2,2,Lost
 13678.0,152,1,232.6,0.0,232.6,False,1,1,1,Lost
@@ -1530,7 +1530,7 @@ CustomerID,Recency,Frequency,GrossMonetary,CancelledValue,Monetary,HasNegativeMo
 14432.0,10,6,2248.5,0.0,2248.5,False,4,4,4,Champions
 14434.0,22,6,1372.8,0.0,1372.8,False,3,4,3,Champions
 14436.0,99,1,89.06,0.0,89.06,False,2,1,1,Lost
-14437.0,366,1,63.0,106.4,0.0,True,1,1,1,Lost
+14437.0,366,1,63.0,106.4,-43.400000000000006,True,1,1,1,Lost
 14438.0,306,1,131.9,0.0,131.9,False,1,1,1,Lost
 14439.0,320,1,2661.24,0.0,2661.24,False,1,1,4,At Risk
 14440.0,8,5,2357.6800000000003,0.0,2357.6800000000003,False,4,4,4,Champions
@@ -2539,7 +2539,7 @@ CustomerID,Recency,Frequency,GrossMonetary,CancelledValue,Monetary,HasNegativeMo
 15799.0,76,3,884.14,0.0,884.14,False,2,3,3,At Risk
 15800.0,107,2,696.89,0.0,696.89,False,2,2,3,At Risk
 15801.0,46,3,1063.95,21.759999999999998,1042.19,False,3,3,3,Champions
-15802.0,143,1,451.42,902.84,0.0,True,1,1,1,Lost
+15802.0,143,1,451.42,902.84,-451.42,True,1,1,1,Lost
 15803.0,51,1,415.82000000000005,0.0,415.82000000000005,False,2,1,2,Lost
 15804.0,1,13,4206.39,357.84,3848.55,False,4,4,4,Champions
 15805.0,23,17,5488.18,76.31,5411.87,False,3,4,4,Champions
@@ -2557,7 +2557,7 @@ CustomerID,Recency,Frequency,GrossMonetary,CancelledValue,Monetary,HasNegativeMo
 15820.0,320,1,206.98,0.0,206.98,False,1,1,1,Lost
 15821.0,44,2,570.96,0.0,570.96,False,3,2,2,Regular Customers
 15822.0,3,2,885.47,0.0,885.47,False,4,2,3,Regular Customers
-15823.0,372,1,15.0,855.76,0.0,True,1,1,1,Lost
+15823.0,372,1,15.0,855.76,-840.76,True,1,1,1,Lost
 15825.0,172,1,532.94,0.0,532.94,False,1,1,2,Lost
 15826.0,56,3,1654.31,4.95,1649.36,False,2,3,4,At Risk
 15827.0,73,14,1836.0900000000001,194.61,1641.48,False,2,4,4,At Risk
@@ -3013,7 +3013,7 @@ CustomerID,Recency,Frequency,GrossMonetary,CancelledValue,Monetary,HasNegativeMo
 16449.0,198,2,707.69,33.0,674.69,False,1,2,3,At Risk
 16450.0,150,1,311.92,0.0,311.92,False,1,1,2,Lost
 16451.0,88,1,266.97,0.0,266.97,False,2,1,1,Lost
-16454.0,45,2,6.9,15.05,0.0,True,3,2,1,Regular Customers
+16454.0,45,2,6.9,15.05,-8.15,True,3,2,1,Regular Customers
 16455.0,64,7,1841.18,0.0,1841.18,False,2,4,4,At Risk
 16456.0,99,5,2158.18,0.0,2158.18,False,2,4,4,At Risk
 16457.0,218,1,208.36,0.0,208.36,False,1,1,1,Lost
@@ -3077,7 +3077,7 @@ CustomerID,Recency,Frequency,GrossMonetary,CancelledValue,Monetary,HasNegativeMo
 16539.0,3,4,1388.81,0.0,1388.81,False,4,3,3,Champions
 16542.0,54,1,119.62,0.0,119.62,False,2,1,1,Lost
 16545.0,165,1,339.3,0.0,339.3,False,1,1,2,Lost
-16546.0,291,2,787.15,883.08,0.0,True,1,2,1,Lost
+16546.0,291,2,787.15,883.08,-95.93000000000006,True,1,2,1,Lost
 16549.0,10,10,4034.9,0.0,4034.9,False,4,4,4,Champions
 16550.0,109,5,2298.97,32.72,2266.25,False,2,4,4,At Risk
 16551.0,96,3,922.12,0.0,922.12,False,2,3,3,At Risk
@@ -3797,7 +3797,7 @@ CustomerID,Recency,Frequency,GrossMonetary,CancelledValue,Monetary,HasNegativeMo
 17540.0,25,2,578.9,8.5,570.4,False,3,2,2,Regular Customers
 17542.0,270,1,170.75,0.0,170.75,False,1,1,1,Lost
 17545.0,43,3,642.32,0.0,642.32,False,3,3,2,Loyal Customers
-17548.0,234,1,103.3,244.78,0.0,True,1,1,1,Lost
+17548.0,234,1,103.3,244.78,-141.48000000000002,True,1,1,1,Lost
 17549.0,24,2,148.86,0.0,148.86,False,3,2,1,Regular Customers
 17550.0,197,3,267.16,0.0,267.16,False,1,3,1,At Risk
 17551.0,359,1,290.34,0.0,290.34,False,1,1,1,Lost
@@ -3838,7 +3838,7 @@ CustomerID,Recency,Frequency,GrossMonetary,CancelledValue,Monetary,HasNegativeMo
 17600.0,18,1,161.67000000000002,0.0,161.67000000000002,False,3,1,1,Regular Customers
 17601.0,239,1,116.00999999999999,0.0,116.00999999999999,False,1,1,1,Lost
 17602.0,2,6,5054.42,52.2,5002.22,False,4,4,4,Champions
-17603.0,78,1,394.72,1560.02,0.0,True,2,1,1,Lost
+17603.0,78,1,394.72,1560.02,-1165.3,True,2,1,1,Lost
 17604.0,217,2,309.36,0.0,309.36,False,1,2,2,Lost
 17608.0,33,2,191.99,0.0,191.99,False,3,2,1,Regular Customers
 17609.0,41,5,1105.78,8.3,1097.48,False,3,4,3,Champions

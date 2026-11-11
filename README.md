@@ -59,27 +59,27 @@ retail-analytics-project/
   - Tạo thuộc tính `OrderMonth`, `Revenue`, `IsCancelled`, `IsNonProduct`.
 - **Customer Segmentation bằng RFM:**
   - Tính toán Recency, Frequency, GrossMonetary, CancelledValue và Monetary ròng.
-  - Gắn cờ `HasNegativeMonetary` và kẹp giá trị Monetary ròng về 0 cho 8 khách có đơn hoàn trả > đơn mua.
+  - Giữ Monetary thực sau hoàn hủy, kể cả âm; gắn cờ `HasNegativeMonetary` và dùng Monetary thực để chấm điểm.
   - Phân loại 5 nhóm khách hàng: *Champions*, *Loyal Customers*, *Regular Customers*, *At Risk*, *Lost*.
-  - Biểu đồ nhiệt tương quan RFM (`rfm_correlation_heatmap.png`).
-  - Biểu đồ phân tán Frequency vs Monetary theo phân khúc (`rfm_scatter_freq_monetary.png`).
+  - Heatmap Pearson trên R/F/M gốc; scatter dùng log1p để hiển thị và ghi chú số khách Monetary âm không được vẽ.
 - **Phân tích giữ chân khách hàng (Cohort Retention):**
-  - Xây dựng ma trận retention theo tháng mua hàng đầu tiên ($M+0$ đến $M+12$).
-  - Xuất bảng `cohort_retention.csv` và biểu đồ nhiệt `cohort_retention_heatmap.png`.
+  - Xây dựng ma trận retention theo tháng mua đầu tiên quan sát được.
+  - CSV lưu tỷ lệ 0–1; heatmap hiển thị %, phân biệt 0%, kỳ chưa quan sát và tháng chưa đủ.
 - **Thống kê NumPy & Outlier Detection:**
   - Tính Mean, Median, Std, Q1, Q3, IQR cho `Revenue`, `Quantity`, `UnitPrice`.
   - Xuất `outlier_summary.csv` và `outliers_detected.csv`.
 - **Kiểm định chất lượng dữ liệu (Validation):**
-  - 15 phép kiểm tra tự động chạy trên file đã làm sạch và phân khúc khách hàng (đạt 0 lỗi 15/15).
+  - 18 phép kiểm tra trên dữ liệu sạch và RFM, gồm công thức Monetary, cờ âm và độ bao phủ khách hàng.
+  - Pipeline dừng nếu validation có lỗi; trước khi xuất dashboard còn đối chiếu doanh thu ròng và số khách.
 - **Phân tích EDA & Trực quan hóa dữ liệu:**
   - Trả lời đầy đủ 8 câu hỏi nghiên cứu và xuất 12 bảng số liệu trong `reports/tables/`.
   - Phân tích chi tiết so sánh thị trường nội địa vs quốc tế: `uk_vs_nonuk_monthly.png` và `uk_vs_nonuk_monthly.csv`.
-  - Gom nhóm sản phẩm theo `StockCode` duy nhất để tránh phân mảnh tên mô tả.
-  - Tách bạch 2 bảng xếp hạng độc lập cho hàng hoàn hủy: Top 10 theo tần suất hóa đơn vs Top 10 theo giá trị tiền hoàn trả (`cancelled_products_by_value.csv`).
+  - Gom theo `StockCode`: bảng Top mã hàng gồm phí/dịch vụ; góc nhìn Top hàng hóa trong notebook và báo cáo loại `IsNonProduct`.
+  - Xếp hạng hoàn hủy độc lập theo số hóa đơn chứa mã hàng và theo giá trị hủy. Số đếm không phải tỷ lệ hủy.
 - **Tài liệu & Báo cáo:**
-  - Jupyter Notebook đầy đủ code, output thực thi và nhận xét: `notebooks/eda_retail_analysis.ipynb`.
+  - Jupyter Notebook gọi cùng pipeline với CLI và trình bày các bảng, ảnh, nhận xét từ một nguồn.
   - Tài liệu chi tiết phương pháp luận: `notebooks/NoteBook.md`.
-  - Báo cáo tóm tắt insight kinh doanh cô đọng: `reports/insight_report.md`.
+  - Báo cáo `reports/eda_results.md` và `reports/insight_report.md` được tạo lại từ kết quả tính.
 - **Thực hành Web Scraping:**
   - Script Books to Scrape (`src/book_scraper.py`) thực hành HTTP GET, HTML parsing với BeautifulSoup, xử lý pagination và xuất `data/external/books_scraped.csv`.
 
@@ -99,10 +99,12 @@ Từ thư mục gốc của project:
 python main.py
 ```
 
-Pipeline sẽ đọc `data/raw/Online_Retail.xlsx` và ghi lại bốn file trong
-`data/processed/`, các bảng EDA trong `reports/tables/` và biểu đồ trong
-`reports/figures/`. Cuối pipeline, dashboard được cập nhật từ các bảng tổng hợp
-và biểu đồ vừa xuất.
+Pipeline đọc `data/raw/Online_Retail.xlsx`, xuất dữ liệu đã xử lý, kiểm định,
+tạo EDA, báo cáo, biểu đồ và cập nhật dashboard.
+
+Mở `notebooks/eda_retail_analysis.ipynb` với kernel của môi trường vừa cài
+và chọn **Run All** để chạy cùng quy trình. Mục scraping dùng HTML mẫu offline
+theo mặc định; bật `LIVE_DEMO` nếu muốn thử một HTTP GET thật.
 
 ## Xem dashboard tĩnh
 
